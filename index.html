@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>NoteDown</title>
+    <link rel="stylesheet" href="./src/style.css">
+  </head>
+  <body>
+    <h1>Line Rendering Engine</h1>
+    <canvas style="width:75%;height:50%;border:1px solid" id="mycanvas"></canvas>
+    <br>
+    <code id="log"></code>
+    <script type="module">
+      import {main} from "./src/main.ts";
+      document.addEventListener("DOMContentLoaded", main);
+    </script>
+  <body>
+</html>
