@@ -1,0 +1,335 @@
+<h1>Line Rendering Engine</h1>
+<canvas style="width:75%;height:50%;border:1px solid" id="mycanvas"></canvas>
+<br>
+<code id="log"></code>
+<script>
+
+  const log_to_screen = (...args) => {
+    let new_data = "";
+    for (let arg in args) {
+      try {
+        new_data += args[arg];
+      } catch {
+        console.error(args[arg]);
+      }
+
+      new_data += " ";
+    }
+    log_container.innerHTML += new_data.replaceAll(" ", "&nbsp;")+ "<br>";
+  };
+
+  class Stroke {
+    constructor(y_root) {context.clearRect(0, 0, canvas.width, canvas.height);
+      this.x_points = [];
+      this.y_points = [];
+      this.y_root = y_root;
+    }
+
+    add(x, y) {
+      this.x_points.push(x);
+      this.y_points.push(y - this.y_root);
+    }
+
+    draw(ctx, y_root) {
+      ctx.strokeStyle = "black";
+      ctx.lineWidth = 2;
+
+      ctx.beginPath();
+      ctx.moveTo(this.x_points[0], this.y_points[0] + y_root);
+      for (let i = 1; i < this.x_points.length; i++) {
+        ctx.lineTo(this.x_points[i], this.y_points[i] + y_root);
+      }
+      ctx.stroke();
+    }
+  };
+
+  document.addEventListener("DOMContentLoaded", () => {
+    const log = console.log;
+    const log_container = document.getElementById("log");
+
+    log("Hello world!");
+
+    const log_event = (e) => {
+      log(e);
+      const keys = Reflect.ownKeys(e.__proto__);
+      for (let prop in keys) {
+        log("  e." + keys[prop], "->", e[keys[prop]]);
+      }
+    };
+
+    const canvas = document.getElementById("mycanvas");
+    canvas.width = 1000;
+    canvas.height = 1000;
+    const ctx = canvas.getContext("2d");
+
+    // Draw ruled layout
+    const line_spacing = 100;
+    const left_margin = 50;
+
+    const draw_layout = () => {
+      ctx.strokeStyle = "black";
+      ctx.lineWidth = 1;
+
+      for (let i = 0; i < canvas.height; i += line_spacing) {
+        ctx.beginPath();
+        ctx.moveTo(0, i);
+        ctx.lineTo(canvas.width, i);
+        ctx.stroke();
+      }
+      ctx.beginPath();
+      ctx.moveTo(left_margin, 0);
+      ctx.lineTo(left_margin, canvas.height);
+      ctx.stroke();
+    };
+    draw_layout();
+
+    const clear = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    };
+
+    const getCanvasCoords = (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const x = (e.clientX - rect.left) * canvas.width / rect.width;
+      const y = (e.clientY - rect.top) * canvas.height / rect.height;
+      return {x: x, y: y};
+    };
+
+    const hidden_roots = new Set();
+    window.hidden_roots = hidden_roots;
+
+    let last_line = 9;
+    let rendered_lines = 10;
+
+    window.lineToRealLine = new Map();
+    for (let i = 0; i <= last_line; i++) {
+      lineToRealLine.set(i, i);
+    }
+
+    const linesToStrokes = new Map();
+    const linesTofirstContent = new Map();
+
+    window.clearAndRedraw = () => {
+      clear();
+      draw_layout();
+      lineToRealLine.forEach((real_line, phys_line) => {
+        const strokes = linesToStrokes.get(real_line);
+        if (strokes === undefined) {
+          return;
+        }
+
+        for (let i = 0; i < strokes.length; i++) {
+          strokes[i].draw(ctx, phys_line * line_spacing);
+        }
+
+        console.log(real_line, hidden_roots);
+        if (hidden_roots.has(real_line)) {
+          ctx.strokeStyle = "black";
+          ctx.lineWidth = 5;
+          ctx.beginPath();
+          ctx.moveTo(left_margin / 4, phys_line * line_spacing + line_spacing / 2);
+          ctx.lineTo(3 * left_margin / 4, phys_line * line_spacing + line_spacing / 2);
+          ctx.moveTo(left_margin / 2, phys_line * line_spacing + line_spacing / 4);
+          ctx.lineTo(left_margin / 2, phys_line * line_spacing + 3 * line_spacing / 4);
+          ctx.stroke();
+        }
+      });
+    };
+
+    window.linesTofirstContent = linesTofirstContent;
+    window.linesToStrokes = linesToStrokes;
+    window.ChildLines = (root) => {
+      let section = [];
+      let blankLineCount = 0;
+      let lineNo = root;
+
+      let indent = linesTofirstContent.get(lineNo);
+      console.log(lineNo, indent)
+      if (indent === undefined) {
+        return section;
+      }
+
+      lineNo += 1
+      for (; lineNo < last_line; lineNo++) {
+        const firstContent = linesTofirstContent.get(lineNo);
+        if (firstContent === undefined) {
+          blankLineCount += 1;
+          continue;
+        }
+        if (blankLineCount < 2 && indent < firstContent && Math.abs(indent - firstContent) > 10) {
+          if (blankLineCount == 1) {
+            section.push(lineNo - 1);
+          }
+          section.push(lineNo);
+        } else {
+          break;
+        }
+        blankLineCount = 0;
+      }
+      return section;
+    };
+
+    let clicked = false;
+    let currentStroke = null;
+    let curr_location = null;
+
+    const touchWrapper = (f) => {
+      return (e) => {
+        e.preventDefault();
+        for (let i = 0; i < e.changedTouches.length; i++) {
+          if (e.changedTouches[i].radiusX == 0 && e.changedTouches[i].radiusY == 0) {
+            f(e.changedTouches[i]);
+            break;
+          }
+        }
+      }
+    };
+
+    let margin_click_touch = false;
+    const mouseDownHandler = (e) => {
+      const coords = getCanvasCoords(e);
+      if (coords.x <= left_margin) {
+        margin_click_touch = true;
+        return;
+      }
+      currentStroke = new Stroke(coords.y - (coords.y % line_spacing))
+      currentStroke.add(coords.x, coords.y);
+      clicked = true;
+      curr_location = coords;
+    };
+    canvas.addEventListener("mousedown", mouseDownHandler);
+    canvas.addEventListener("touchstart", touchWrapper(mouseDownHandler));
+
+    const clickHandler = (e) => {
+      console.log(lineToRealLine);
+      const coords = getCanvasCoords(e);
+      if (coords.x > left_margin) {
+        return;
+      }
+
+      let curr_line = Math.floor(coords.y / line_spacing);
+      let real_line = lineToRealLine.get(curr_line);
+      const hidden_real_lines_list = ChildLines(real_line);
+      const hidden_real_lines = new Set(hidden_real_lines_list);
+      console.log(hidden_real_lines);
+
+      if (hidden_roots.has(real_line)) {
+        const lines_to_unhide = [];
+        let i = 0;
+        while ( i < hidden_real_lines_list.length) {
+          const line = hidden_real_lines_list[i];
+          lines_to_unhide.push(line);
+          if (hidden_roots.has(line)) {
+            const hidden_child_lines = ChildLines(line);
+            console.log(line, "->", hidden_child_lines);
+            i += hidden_child_lines.length + 1;
+          } else {
+            i++;
+          }
+        }
+        console.log("!", lines_to_unhide);
+        for (let i = rendered_lines - 1; i >= curr_line + 1 + lines_to_unhide.length; i--) {
+          console.log("m", i, i - lines_to_unhide.length, lineToRealLine.get(i - lines_to_unhide.length));
+          lineToRealLine.set(i, lineToRealLine.get(i - lines_to_unhide.length));
+        }
+        for (let i = 0; i < lines_to_unhide.length; i++) {
+          console.log("s", curr_line + 1 + i, lines_to_unhide[i])
+          lineToRealLine.set(curr_line + 1 + i, lines_to_unhide[i]);
+        }
+        hidden_roots.delete(real_line);
+        clearAndRedraw();
+      } else {
+        curr_line += 1;
+        let num_to_hide = 1;
+        let start_line = curr_line;
+        while (curr_line < rendered_lines &&
+          hidden_real_lines.has(lineToRealLine.get(curr_line))) {
+          console.log(curr_line);
+          curr_line += 1;
+          num_to_hide++;
+        }
+        let end_line = curr_line;
+
+        if (start_line != end_line) {
+          hidden_roots.add(real_line);
+          for (let i = 0; i < rendered_lines - start_line; i++) {
+            let phys_target_line = end_line + i;
+            let target_line = lineToRealLine.get(phys_target_line);
+            if (target_line == undefined) {
+              target_line = last_line + 1;
+            }
+            console.log("s", start_line + i, target_line);
+            lineToRealLine.set(start_line + i, target_line);
+            last_line = Math.max(last_line, target_line);
+          }
+
+          console.log("*", curr_line);
+          clearAndRedraw();
+        }
+      }
+    };
+
+    const mouseUpHandler = (e) => {
+      if (margin_click_touch) {
+        margin_click_touch = false;
+        clickHandler(e);
+        return;
+      }
+      if (!clicked) {
+        return;
+      }
+      clicked = false;
+      curr_location = null;
+      currentStroke.draw(ctx, currentStroke.y_root);
+      const phys_line = Math.floor(currentStroke.y_root / line_spacing);
+      const curr_line = lineToRealLine.get(phys_line);
+      if (!linesToStrokes.has(curr_line)) {
+        linesToStrokes.set(curr_line, []);
+      }
+      linesToStrokes.get(curr_line).push(currentStroke);
+
+      let leftMostPoint = Infinity;
+      for (let i = 0 ; i < currentStroke.x_points.length; i++) {
+        if (currentStroke.y_points[i] < 0 || currentStroke.y_points[i] >= line_spacing) {
+          continue;
+        }
+
+        leftMostPoint = Math.min(leftMostPoint, currentStroke.x_points[i]);
+      }
+      if (!linesTofirstContent.has(currentStroke.owner)) {
+        linesTofirstContent.set(curr_line, leftMostPoint)
+      }
+      linesTofirstContent.set(curr_line,
+        Math.min(linesTofirstContent.get(curr_line), leftMostPoint));
+    };
+
+    canvas.addEventListener("mouseup", mouseUpHandler);
+    canvas.addEventListener("touchend", touchWrapper(mouseUpHandler));
+
+    const mouseMoveHandler = (e) => {
+      const coords = getCanvasCoords(e);
+      if (!clicked) {
+        if (margin_click_touch && coords.x > left_margin) {
+          margin_click_touch = false;
+        }
+        return;
+      }
+      if (coords.x <= left_margin) {
+        return;
+      }
+
+      ctx.strokeStyle = "black";
+      ctx.lineWidth = 2;
+
+      ctx.beginPath();
+      ctx.moveTo(curr_location.x, curr_location.y);
+      ctx.lineTo(coords.x, coords.y);
+      ctx.stroke();
+      curr_location = coords;
+      currentStroke.add(coords.x, coords.y);
+    };
+    canvas.addEventListener("mousemove", mouseMoveHandler);
+    canvas.addEventListener("touchmove", touchWrapper(mouseMoveHandler));
+
+    // canvas.addEventListener("click", );
+  });
+</script>
