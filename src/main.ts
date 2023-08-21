@@ -33,7 +33,7 @@ class Document {
     }
 
     (lineNo as number) += 1
-    for (; lineNo < this.last_line; lineNo++) {
+    for (; lineNo <= this.last_line; lineNo++) {
       const firstContent = this.linesTofirstContent.get(lineNo);
       if (firstContent === undefined) {
         blankLineCount += 1;
@@ -60,6 +60,7 @@ class Document {
 
     let leftMostPoint = Infinity;
     for (let i = 0; i < stroke.x_points.length; i++) {
+      // TODO:
       // if (stroke.y_points[i] < 0 || stroke.y_points[i] >= line_spacing) {
       //   continue;
       // }
@@ -71,6 +72,11 @@ class Document {
     }
     this.linesTofirstContent.set(curr_line,
       Math.min(this.linesTofirstContent.get(curr_line) || 0, leftMostPoint));
+  }
+
+  updateLastLine(new_last: RealLineNumber) {
+    // TODO The document can only ever grow with this implementation
+    this.last_line = Math.max(this.last_line, new_last);
   }
 }
 
@@ -177,11 +183,19 @@ class NoteDownUI {
       if (this.hidden_roots.has(real_line)) {
         this.ctx.strokeStyle = "black";
         this.ctx.lineWidth = 5;
+
+        const plus_width = this.left_margin / 2;
+        const plus_height = this.line_spacing / 2;
+        const plus_dim = Math.min(plus_width, plus_height);
+
+        const mid_pt_x = this.left_margin / 2;
+        const mid_pt_y = phys_line * this.line_spacing + this.line_spacing / 2;
+
         this.ctx.beginPath();
-        this.ctx.moveTo(this.left_margin / 4, phys_line * this.line_spacing + this.line_spacing / 2);
-        this.ctx.lineTo(3 * this.left_margin / 4, phys_line * this.line_spacing + this.line_spacing / 2);
-        this.ctx.moveTo(this.left_margin / 2, phys_line * this.line_spacing + this.line_spacing / 4);
-        this.ctx.lineTo(this.left_margin / 2, phys_line * this.line_spacing + 3 * this.line_spacing / 4);
+        this.ctx.moveTo(mid_pt_x - plus_dim / 2, mid_pt_y);
+        this.ctx.lineTo(mid_pt_x + plus_dim / 2, mid_pt_y);
+        this.ctx.moveTo(mid_pt_x, mid_pt_y - plus_dim / 2);
+        this.ctx.lineTo(mid_pt_x, mid_pt_y + plus_dim / 2);
         this.ctx.stroke();
       }
     });
@@ -227,7 +241,7 @@ class NoteDownUI {
       for (let i = this.rendered_lines - 1; i >= line + 1 + lines_to_unhide.length; i--) {
         this.lineToRealLine.set(
           ToRenderedLineNumber(i),
-          this.lineToRealLine.get((i - lines_to_unhide.length) as RenderedLineNumber)!
+          this.lineToRealLine.get((i + 1 - lines_to_unhide.length) as RenderedLineNumber)!
         );
       }
       for (let i = 0; i < lines_to_unhide.length; i++) {
@@ -252,11 +266,21 @@ class NoteDownUI {
           let phys_target_line = (end_line + i) as RenderedLineNumber;
           let target_line = this.lineToRealLine.get(phys_target_line);
           if (target_line === undefined) {
-            target_line = (this.doc.last_line + 1) as RealLineNumber;
+            const prev_line = this.lineToRealLine.get((start_line + i - 1) as RenderedLineNumber)!;
+            if (this.hidden_roots.has(prev_line)) {
+              const children = this.doc.childLines(prev_line);
+              // this assumes children is sorted
+              const max_child = children[children.length - 1];
+              console.log(max_child, max_child + 1)
+              target_line = (max_child + 1) as RealLineNumber;
+            } else {
+              console.log(phys_target_line, prev_line, prev_line + 1)
+              target_line = (prev_line + 1) as RealLineNumber;
+            }
           }
           console.log("s", start_line + i, target_line);
           this.lineToRealLine.set((start_line + i) as RenderedLineNumber, target_line);
-          this.doc.last_line = Math.max(this.doc.last_line, target_line);
+          this.doc.updateLastLine(target_line);
         }
 
         return true;
