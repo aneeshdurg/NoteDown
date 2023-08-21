@@ -27,7 +27,6 @@ class Document {
     let lineNo = root;
 
     let indent = this.linesTofirstContent.get(lineNo);
-    console.log(lineNo, indent)
     if (indent === undefined) {
       return section;
     }
@@ -37,9 +36,13 @@ class Document {
       const firstContent = this.linesTofirstContent.get(lineNo);
       if (firstContent === undefined) {
         blankLineCount += 1;
+        if (blankLineCount == 2) {
+          section.push(ToRealLineNumber(lineNo - 1));
+          break;
+        }
         continue;
       }
-      if (blankLineCount < 2 && indent < firstContent && Math.abs(indent - firstContent) > 10) {
+      if (indent < firstContent && Math.abs(indent - firstContent) > 20) {
         if (blankLineCount == 1) {
           section.push(ToRealLineNumber(lineNo - 1));
         }
@@ -214,14 +217,12 @@ class NoteDownUI {
   }
 
   toggleLineHidden(line: RenderedLineNumber): boolean {
-    console.log("toggleLineHidden", line);
     let real_line = this.lineToRealLine.get(line);
     if (real_line === undefined) {
       return false;
     }
     const hidden_real_lines_list = this.doc.childLines(real_line);
     const hidden_real_lines = new Set(hidden_real_lines_list);
-    console.log(hidden_real_lines);
 
     if (this.hidden_roots.has(real_line)) {
       const lines_to_unhide: RealLineNumber[] = [];
@@ -231,21 +232,21 @@ class NoteDownUI {
         lines_to_unhide.push(line);
         if (this.hidden_roots.has(line)) {
           const hidden_child_lines = this.doc.childLines(line);
-          console.log(line, "->", hidden_child_lines);
           i += hidden_child_lines.length + 1;
         } else {
           i++;
         }
       }
-      console.log("!", lines_to_unhide);
       for (let i = this.rendered_lines - 1; i >= line + 1 + lines_to_unhide.length; i--) {
         this.lineToRealLine.set(
           ToRenderedLineNumber(i),
-          this.lineToRealLine.get((i + 1 - lines_to_unhide.length) as RenderedLineNumber)!
+          this.lineToRealLine.get((i - lines_to_unhide.length) as RenderedLineNumber)!
         );
       }
       for (let i = 0; i < lines_to_unhide.length; i++) {
-        console.log("s", line + 1 + i, lines_to_unhide[i])
+        if ((line + 1 + i) >= this.rendered_lines) {
+          break;
+        }
         this.lineToRealLine.set((line + 1 + i) as RenderedLineNumber, lines_to_unhide[i]);
       }
       this.hidden_roots.delete(real_line);
@@ -255,7 +256,6 @@ class NoteDownUI {
       let start_line = line;
       while (line < this.rendered_lines &&
         hidden_real_lines.has(this.lineToRealLine.get(line)!)) {
-        console.log(line);
         (line as number) += 1;
       }
       let end_line = line;
@@ -271,14 +271,11 @@ class NoteDownUI {
               const children = this.doc.childLines(prev_line);
               // this assumes children is sorted
               const max_child = children[children.length - 1];
-              console.log(max_child, max_child + 1)
               target_line = (max_child + 1) as RealLineNumber;
             } else {
-              console.log(phys_target_line, prev_line, prev_line + 1)
               target_line = (prev_line + 1) as RealLineNumber;
             }
           }
-          console.log("s", start_line + i, target_line);
           this.lineToRealLine.set((start_line + i) as RenderedLineNumber, target_line);
           this.doc.updateLastLine(target_line);
         }
