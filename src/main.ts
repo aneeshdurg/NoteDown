@@ -119,6 +119,10 @@ class NoteDownUI {
 
     this.ctx = ctx;
 
+    this.ctx.canvas.addEventListener("touchstart", this.genericTouchStart.bind(this));
+    this.ctx.canvas.addEventListener("touchend", this.genericTouchEnd.bind(this));
+    this.ctx.canvas.addEventListener("touchmove", this.genericTouchMove.bind(this));
+
     const mouseDownHandler = this.mouseDownHandler.bind(this);
     this.ctx.canvas.addEventListener("mousedown", mouseDownHandler);
     this.ctx.canvas.addEventListener("touchstart", touchWrapper(mouseDownHandler));
@@ -131,12 +135,109 @@ class NoteDownUI {
     this.ctx.canvas.addEventListener("mousemove", mouseMoveHandler);
     this.ctx.canvas.addEventListener("touchmove", touchWrapper(mouseMoveHandler));
 
+    // Callback for scrolling
+    this.ctx.canvas.addEventListener("wheel", (e) => {
+      if (e.deltaY > 0) {
+        this.scrollDown();
+        this.clearAndRedraw();
+      } else if (e.deltaY < 0) {
+        this.scrollUp();
+        this.clearAndRedraw();
+      }
+      e.preventDefault();
+    });
+
     this.draw_layout();
 
     this.rendered_lines = this.ctx.canvas.height / this.line_spacing;
     for (let i = 0; i < this.rendered_lines; i++) {
       this.lineToRealLine.set(ToRenderedLineNumber(i), ToRealLineNumber(i));
     }
+
+    const trackedPointer = new Set();
+
+    let scrollPos: { x: number, y: number } | null = null;
+
+    this.ctx.canvas.addEventListener("pointerdown", (e: PointerEvent) => {
+      if (e.pointerType != "touch") {
+        return;
+      }
+      trackedPointer.add(e.pointerId);
+
+
+      const coords = this.getCanvasCoords(e);
+      if (trackedPointer.size > 1) {
+        scrollPos = null;
+        document.getElementById("log")!.innerHTML = `\n<br>   INVALID ${[...trackedPointer]} ${coords.x}, ${coords.y}` + document.getElementById("log")!.innerHTML;
+      } else {
+        if (coords.x >= this.left_margin) {
+          scrollPos = coords;
+        }
+        document.getElementById("log")!.innerHTML = `\n<br>   ${coords.x}, ${coords.y}` + document.getElementById("log")!.innerHTML;
+      }
+
+      document.getElementById("log")!.innerHTML = `\n<br>Down ${e.pointerId}: ${e.clientX}, ${e.clientY} ${e.pointerType}` + document.getElementById("log")!.innerHTML;
+      console.log(e);
+    });
+
+    this.ctx.canvas.addEventListener("pointercancel", (e: PointerEvent) => {
+      document.getElementById("log")!.innerHTML = `\n<br>Cancel ${e.pointerId}: ${e.pointerType}` + document.getElementById("log")!.innerHTML;
+      trackedPointer.delete(e.pointerId);
+    });
+    this.ctx.canvas.addEventListener("pointerup", (e: PointerEvent) => {
+      if (e.pointerType != "touch") {
+        return;
+      }
+
+      scrollPos = null;
+
+      trackedPointer.delete(e.pointerId);
+      document.getElementById("log")!.innerHTML = `\n<br>Up   ${e.pointerId}: ${e.clientX}, ${e.clientY} ${e.pointerType}` + document.getElementById("log")!.innerHTML;
+    });
+
+    this.ctx.canvas.addEventListener("pointermove", (e: PointerEvent) => {
+      if (e.pointerType != "touch") {
+        return;
+      }
+      if (!trackedPointer.has(e.pointerId)) {
+        return;
+      }
+
+      const coords = this.getCanvasCoords(e);
+      // document.getElementById("log")!.innerHTML = `\n<br>   ${scrollPos === null}` + document.getElementById("log")!.innerHTML;
+      if (scrollPos) {
+        const deltaY = scrollPos.y - coords.y;
+        if (Math.abs(deltaY) > 10) {
+          if (deltaY < 0) {
+            this.scrollUp();
+            this.clearAndRedraw();
+          } else {
+            this.scrollDown();
+            this.clearAndRedraw();
+          }
+          scrollPos = coords;
+        }
+        // document.getElementById("log")!.innerHTML = `\n<br>   ${deltaY}` + document.getElementById("log")!.innerHTML;
+      }
+      // document.getElementById("log")!.innerHTML = `\n<br>Move ${e.pointerId}: ${e.clientX}, ${e.clientY}` + document.getElementById("log")!.innerHTML;
+    });
+  }
+
+  genericTouchStart(e: TouchEvent) {
+    // let counter = 0;
+    // for (let i = 0; i < e.changedTouches.length; i++) {
+    //   if (e.changedTouches[i].radiusX == 0 && e.changedTouches[i].radiusY == 0) {
+    //     continue;
+    //   }
+    //   counter += 1;
+    // }
+    // document.getElementById("log")!.innerHTML = counter.toString() + "," + e.changedTouches.length;
+  }
+
+  genericTouchMove() {
+  }
+
+  genericTouchEnd() {
   }
 
   // Draw ruled layout
@@ -334,6 +435,40 @@ class NoteDownUI {
     this.ctx.stroke();
     this.curr_location = coords;
     this.currentStroke?.add(coords.x, coords.y);
+  }
+
+  remap(start: RenderedLineNumber, end: RenderedLineNumber) {
+    this.lineToRealLine.set(start, this.lineToRealLine.get(end)!);
+  }
+
+  scrollDown() {
+    for (let i = 0 as RenderedLineNumber; (i as number) < this.rendered_lines - 1; i++) {
+      this.remap(i, i + 1 as RenderedLineNumber);
+    }
+
+    let final_value = this.lineToRealLine.get(this.rendered_lines - 1 as RenderedLineNumber)!;
+    final_value = final_value + 1 as RealLineNumber;
+    this.lineToRealLine.set(this.rendered_lines - 1 as RenderedLineNumber, final_value);
+  }
+
+  scrollUp() {
+    if (this.lineToRealLine.get(0 as RenderedLineNumber)! == 0) {
+      return;
+    }
+    for (let i = this.rendered_lines - 1; i >= 1; i--) {
+      const next_value = this.lineToRealLine.get((i - 1) as RenderedLineNumber)!;
+      this.lineToRealLine.set(i as RenderedLineNumber, next_value);
+    }
+
+    let first_value = this.lineToRealLine.get(0 as RenderedLineNumber)!;
+    first_value = first_value - 1 as RealLineNumber;
+    for (let root of this.hidden_roots) {
+      if (this.doc.childLines(root).includes(first_value)) {
+        first_value = root;
+        break;
+      }
+    }
+    this.lineToRealLine.set(0 as RenderedLineNumber, first_value);
   }
 }
 
