@@ -36,16 +36,13 @@ class Document {
       const firstContent = this.linesTofirstContent.get(lineNo);
       if (firstContent === undefined) {
         blankLineCount += 1;
-        if (blankLineCount == 2) {
-          section.push(ToRealLineNumber(lineNo - 1));
+        if (blankLineCount == 1) {
+          section.push(ToRealLineNumber(lineNo));
           break;
         }
         continue;
       }
       if (indent < firstContent && Math.abs(indent - firstContent) > 20) {
-        if (blankLineCount == 1) {
-          section.push(ToRealLineNumber(lineNo - 1));
-        }
         section.push(lineNo);
       } else {
         break;
