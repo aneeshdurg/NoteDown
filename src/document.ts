@@ -108,8 +108,7 @@ export class NoteDownDocument {
     strokes.forEach((s) => {
       leftMostPoint = Math.min(leftMostPoint, s.leftMostPoint());
     });
-    this.linesTofirstContent.set(line,
-      Math.min(this.linesTofirstContent.get(line) || 0, leftMostPoint));
+    this.linesTofirstContent.set(line, leftMostPoint);
     await this.saveToStorage(line, storage);
   }
 
