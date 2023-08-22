@@ -1,17 +1,5 @@
 import { Point, Stroke } from './stroke.ts';
-import { Opaque } from './opaque.ts';
-
-declare const RenderedLineNumberS: unique symbol
-type RenderedLineNumber = Opaque<number, typeof RenderedLineNumberS>
-function ToRenderedLineNumber(n: number): RenderedLineNumber {
-  return (n as any);
-}
-
-declare const RealLineNumberS: unique symbol
-type RealLineNumber = Opaque<number, typeof RealLineNumberS>
-function ToRealLineNumber(n: number): RealLineNumber {
-  return (n as any);
-}
+import { RealLineNumber, RenderedLineNumber } from './types.ts';
 
 class Document {
   last_line: number = 9;
@@ -71,7 +59,7 @@ class Document {
       if (firstContent === undefined) {
         blankLineCount += 1;
         if (blankLineCount == 1) {
-          section.push(ToRealLineNumber(lineNo));
+          section.push(lineNo as RealLineNumber);
           break;
         }
         continue;
@@ -181,7 +169,7 @@ class NoteDownUI {
 
     this.rendered_lines = this.ctx.canvas.height / this.line_spacing;
     for (let i = 0; i < this.rendered_lines; i++) {
-      this.lineToRealLine.set(ToRenderedLineNumber(i), ToRealLineNumber(i));
+      this.lineToRealLine.set(i as RenderedLineNumber, i as RealLineNumber);
     }
 
     const trackedPointer = new Set();
@@ -204,7 +192,7 @@ class NoteDownUI {
       } else {
         if (coords.x >= this.left_margin) {
           scrollPos = coords;
-          lineToIndent = ToRenderedLineNumber(Math.floor(coords.y / this.line_spacing));
+          lineToIndent = Math.floor(coords.y / this.line_spacing) as RenderedLineNumber;
         }
         document.getElementById("log")!.innerHTML = `\n<br>   ${coords.x}, ${coords.y}` + document.getElementById("log")!.innerHTML;
       }
@@ -380,7 +368,7 @@ class NoteDownUI {
       }
       for (let i = this.rendered_lines - 1; i >= line + 1 + lines_to_unhide.length; i--) {
         this.lineToRealLine.set(
-          ToRenderedLineNumber(i),
+          i as RenderedLineNumber,
           this.lineToRealLine.get((i - lines_to_unhide.length) as RenderedLineNumber)!
         );
       }
@@ -433,7 +421,7 @@ class NoteDownUI {
       return;
     }
 
-    let curr_line = ToRenderedLineNumber(Math.floor(coords.y / this.line_spacing));
+    let curr_line = Math.floor(coords.y / this.line_spacing) as RenderedLineNumber;
     if (this.toggleLineHidden(curr_line)) {
       this.clearAndRedraw();
     }
@@ -454,7 +442,7 @@ class NoteDownUI {
     this.curr_location = null;
     if (!this.is_eraser) {
       this.currentStroke.draw(this.ctx, this.currentStroke.y_root);
-      const phys_line = ToRenderedLineNumber(Math.floor(this.currentStroke.y_root / this.line_spacing));
+      const phys_line = Math.floor(this.currentStroke.y_root / this.line_spacing) as RenderedLineNumber;
       const real_line = this.lineToRealLine.get(phys_line)!;
       this.doc.add_stroke(real_line, this.currentStroke);
     }
