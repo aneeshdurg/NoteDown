@@ -33,6 +33,7 @@ export class NoteDownUI {
 
   line_spacing = 100;
   left_margin = 50;
+  y_offset = 0;
 
   lineToRealLine: Map<RenderedLineNumber, RealLineNumber> = new Map();
   rendered_lines: number;
@@ -41,6 +42,7 @@ export class NoteDownUI {
 
   constructor(
     name: string,
+    upgradeUI: boolean,
     ctx: CanvasRenderingContext2D,
     doc: NoteDownDocument,
     storage: NoteDownStorageManager
@@ -51,15 +53,17 @@ export class NoteDownUI {
 
     this.ctx = ctx;
     this.rendered_lines = this.ctx.canvas.height / this.line_spacing;
+    this.rendered_lines += 1;
     for (let i = 0; i < this.rendered_lines; i++) {
       this.lineToRealLine.set(i as RenderedLineNumber, i as RealLineNumber);
     }
+
 
     this.draw_layout();
 
     this.storage.setActiveNotebook(name).then(async () => {
       if (await this.storage.notebookIsInitialized()) {
-        await this.load();
+        await this.load(upgradeUI);
         this.clearAndRedraw();
       } else {
         await this.save();
@@ -78,10 +82,12 @@ export class NoteDownUI {
     await this.storage.saveUIState(state);
   }
 
-  async load() {
-    const state = await this.storage.getUIState();
-    this.lineToRealLine = state.lineToRealLine;
-    this.hidden_roots = state.hidden_roots;
+  async load(upgradeUI: boolean) {
+    if (!upgradeUI) {
+      const state = await this.storage.getUIState();
+      this.lineToRealLine = state.lineToRealLine;
+      this.hidden_roots = state.hidden_roots;
+    }
 
     await this.doc.load(this.storage);
   }
@@ -127,21 +133,18 @@ export class NoteDownUI {
       const coords = this.getCanvasCoords(e);
       if (trackedPointer.size > 1) {
         scrollPos = null;
-        document.getElementById("log")!.innerHTML = `\n<br>   INVALID ${[...trackedPointer]} ${coords.x}, ${coords.y}` + document.getElementById("log")!.innerHTML;
       } else {
         if (coords.x >= this.left_margin) {
           scrollPos = coords;
           lineToIndent = Math.floor(coords.y / this.line_spacing) as RenderedLineNumber;
+          if (this.y_offset >= 0.5) {
+            lineToIndent++;
+          }
         }
-        document.getElementById("log")!.innerHTML = `\n<br>   ${coords.x}, ${coords.y}` + document.getElementById("log")!.innerHTML;
       }
-
-      document.getElementById("log")!.innerHTML = `\n<br>Down ${e.pointerId}: ${e.clientX}, ${e.clientY} ${e.pointerType}` + document.getElementById("log")!.innerHTML;
-      console.log(e);
     });
 
     this.ctx.canvas.addEventListener("pointercancel", (e: PointerEvent) => {
-      document.getElementById("log")!.innerHTML = `\n<br>Cancel ${e.pointerId}: ${e.pointerType}` + document.getElementById("log")!.innerHTML;
       trackedPointer.delete(e.pointerId);
       scrollPos = null;
       lineToIndent = null;
@@ -154,7 +157,6 @@ export class NoteDownUI {
 
       if (lineToIndent !== null) {
         const real_line = this.lineToRealLine.get(lineToIndent)!;
-        document.getElementById("log")!.innerHTML = `\n<br>  Indent ${indentDirection}, ${real_line}` + document.getElementById("log")!.innerHTML;
         if (indentDirection == 1) {
           this.doc.unindent(real_line);
         } else if (indentDirection == -1) {
@@ -168,10 +170,9 @@ export class NoteDownUI {
       indentDirection = 0;
 
       trackedPointer.delete(e.pointerId);
-      document.getElementById("log")!.innerHTML = `\n<br>Up   ${e.pointerId}: ${e.clientX}, ${e.clientY} ${e.pointerType}` + document.getElementById("log")!.innerHTML;
     });
 
-    this.ctx.canvas.addEventListener("pointermove", (e: PointerEvent) => {
+    this.ctx.canvas.addEventListener("pointermove", async (e: PointerEvent) => {
       if (e.pointerType != "touch") {
         return;
       }
@@ -180,33 +181,30 @@ export class NoteDownUI {
       }
 
       const coords = this.getCanvasCoords(e);
-      // document.getElementById("log")!.innerHTML = `\n<br>   ${scrollPos === null}` + document.getElementById("log")!.innerHTML;
       if (scrollPos) {
+        const deltaX = scrollPos.x - coords.x;
+        if (Math.abs(deltaX) > 10) {
+          let newIndentDirection = deltaX > 0 ? 1 : -1;
+          if (indentDirection == 0) {
+            indentDirection = (newIndentDirection as (-1 | 1 | 0));
+          } else if (indentDirection != newIndentDirection) {
+            indentDirection = null;
+          }
+        }
         const deltaY = scrollPos.y - coords.y;
-        if (Math.abs(deltaY) > 20) {
-          lineToIndent = null;
-          if (deltaY < 0) {
-            this.scrollUp();
-            this.clearAndRedraw();
-          } else {
-            this.scrollDown();
+        if (Math.abs(deltaY) > 10) {
+          for (let i = 0; i < 25; i++) {
+            lineToIndent = null;
+            if (deltaY < 0) {
+              this.scrollUp();
+            } else {
+              this.scrollDown();
+            }
             this.clearAndRedraw();
           }
           scrollPos = coords;
-        } else {
-          const deltaX = scrollPos.x - coords.x;
-          if (Math.abs(deltaX) > 10) {
-            let newIndentDirection = deltaX > 0 ? 1 : -1;
-            if (indentDirection == 0) {
-              indentDirection = (newIndentDirection as (-1 | 1 | 0));
-            } else if (indentDirection != newIndentDirection) {
-              indentDirection = null;
-            }
-          }
-          document.getElementById("log")!.innerHTML = `\n<br>   x: ${deltaX} ${indentDirection} ${lineToIndent}` + document.getElementById("log")!.innerHTML;
         }
       }
-      // document.getElementById("log")!.innerHTML = `\n<br>Move ${e.pointerId}: ${e.clientX}, ${e.clientY}` + document.getElementById("log")!.innerHTML;
     });
 
   }
@@ -216,15 +214,15 @@ export class NoteDownUI {
     this.ctx.strokeStyle = "black";
     this.ctx.lineWidth = 1;
 
-    for (let i = 0; i < this.ctx.canvas.height; i += this.line_spacing) {
+    for (let i = 0; i < this.rendered_lines; i++) {
       this.ctx.beginPath();
-      this.ctx.moveTo(0, i);
-      this.ctx.lineTo(this.ctx.canvas.width, i);
+      this.ctx.moveTo(0, i * this.line_spacing);
+      this.ctx.lineTo(this.ctx.canvas.width, i * this.line_spacing);
       this.ctx.stroke();
     }
     this.ctx.beginPath();
     this.ctx.moveTo(this.left_margin, 0);
-    this.ctx.lineTo(this.left_margin, this.ctx.canvas.height);
+    this.ctx.lineTo(this.left_margin, this.ctx.canvas.height + this.y_offset * this.line_spacing);
     this.ctx.stroke();
   }
 
@@ -241,6 +239,8 @@ export class NoteDownUI {
 
   clearAndRedraw() {
     this.clear();
+    this.ctx.save();
+    this.ctx.transform(1, 0, 0, 1, 0, -1 * this.y_offset * this.line_spacing);
     this.draw_layout();
     this.lineToRealLine.forEach((real_line, phys_line) => {
       const strokes = this.doc.linesToStrokes.get(real_line);
@@ -271,6 +271,7 @@ export class NoteDownUI {
         this.ctx.stroke();
       }
     });
+    this.ctx.restore();
   }
 
   mouseDownHandler(e: InteractiveEvent) {
@@ -385,7 +386,21 @@ export class NoteDownUI {
     if (!this.is_eraser) {
       this.currentStroke.draw(this.ctx, this.currentStroke.y_root);
       const phys_line = Math.floor(this.currentStroke.y_root / this.line_spacing) as RenderedLineNumber;
-      const real_line = this.lineToRealLine.get(phys_line)!;
+      let real_line = this.lineToRealLine.get(phys_line)!;
+      let min_y = Infinity;
+      let max_y = 0;
+      for (let y of this.currentStroke.y_points) {
+        min_y = Math.min(y, min_y);
+        max_y = Math.max(y, max_y);
+      }
+      console.log(min_y, this.line_spacing - min_y % this.line_spacing, max_y, max_y % this.line_spacing);
+      const inset = this.line_spacing - min_y % this.line_spacing;
+      console.log(">", inset, this.line_spacing / 4, max_y - min_y, this.line_spacing)
+      if (inset < this.line_spacing / 4 && (max_y - min_y) >= this.line_spacing) {
+        real_line++;
+        this.currentStroke.y_points = this.currentStroke.y_points.map((y) => y - this.line_spacing);
+        console.log(" change line", real_line);
+      }
       await this.doc.add_stroke(real_line, this.currentStroke, this.storage);
     }
     this.currentStroke = null;
@@ -444,6 +459,14 @@ export class NoteDownUI {
   }
 
   async scrollDown() {
+    if (this.y_offset < 1) {
+      this.y_offset += 0.01;
+      if ((1 - this.y_offset) >= 0.01) {
+        return;
+      }
+    }
+
+    this.y_offset = 0;
     for (let i = 0 as RenderedLineNumber; (i as number) < this.rendered_lines - 1; i++) {
       this.remap(i, i + 1 as RenderedLineNumber);
     }
@@ -455,25 +478,35 @@ export class NoteDownUI {
   }
 
   async scrollUp() {
-  if (this.lineToRealLine.get(0 as RenderedLineNumber)! == 0) {
-    return;
-  }
-  for (let i = this.rendered_lines - 1; i >= 1; i--) {
-    const next_value = this.lineToRealLine.get((i - 1) as RenderedLineNumber)!;
-    this.lineToRealLine.set(i as RenderedLineNumber, next_value);
-  }
-
-  let first_value = this.lineToRealLine.get(0 as RenderedLineNumber)!;
-  first_value = first_value - 1 as RealLineNumber;
-  for (let root of this.hidden_roots) {
-    if (this.doc.childLines(root).includes(first_value)) {
-      first_value = root;
-      break;
+    console.log(this.y_offset);
+    if (this.y_offset > 0) {
+      this.y_offset -= 0.01;
+      if (this.y_offset >= 0.01) {
+        return;
+      }
     }
+
+    if (this.lineToRealLine.get(0 as RenderedLineNumber)! == 0) {
+      this.y_offset = 0;
+      return;
+    }
+    this.y_offset = 1 - this.y_offset;
+    for (let i = this.rendered_lines - 1; i >= 1; i--) {
+      const next_value = this.lineToRealLine.get((i - 1) as RenderedLineNumber)!;
+      this.lineToRealLine.set(i as RenderedLineNumber, next_value);
+    }
+
+    let first_value = this.lineToRealLine.get(0 as RenderedLineNumber)!;
+    first_value = first_value - 1 as RealLineNumber;
+    for (let root of this.hidden_roots) {
+      if (this.doc.childLines(root).includes(first_value)) {
+        first_value = root;
+        break;
+      }
+    }
+    this.lineToRealLine.set(0 as RenderedLineNumber, first_value);
+    await this.save();
   }
-  this.lineToRealLine.set(0 as RenderedLineNumber, first_value);
-  await this.save();
-}
 }
 
 

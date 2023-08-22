@@ -17,13 +17,18 @@ export async function main() {
   const urlParams = new URLSearchParams(queryString);
   const notebook = urlParams.get("notebook") || "default";
   const forceCreate = urlParams.get("forcecreate") || false;
+  const upgradeUI = (urlParams.get("upgradeui") || false) as boolean;
   if (forceCreate) {
-    localForage.dropInstance({name: notebook});
+    try {
+      localForage.dropInstance({name: notebook});
+    } catch (e) {
+      console.log(e);
+    }
   }
 
   const storage = new LocalStorageManager();
   const doc = new NoteDownDocument();
-  const ui = new NoteDownUI(notebook, ctx, doc, storage);
+  const ui = new NoteDownUI(notebook, upgradeUI, ctx, doc, storage);
 
   const eraser = <HTMLElement>document.getElementById("eraser");
   eraser.onclick = () => {
