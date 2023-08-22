@@ -1,6 +1,7 @@
 import { Point, Stroke } from './stroke.ts';
 import { RealLineNumber, RenderedLineNumber } from './types.ts';
 import { NoteDownDocument } from './document.ts';
+import { NoteDownStorageManager } from './storage_manager.ts';
 
 interface InteractiveEvent {
   clientX: number;
@@ -20,7 +21,9 @@ const touchWrapper = (f: (e: InteractiveEvent) => void): (e: TouchEvent) => void
 };
 
 export class NoteDownUI {
+  name: string;
   doc: NoteDownDocument;
+  storage: NoteDownStorageManager;
 
   ctx: CanvasRenderingContext2D
   clicked = false;
@@ -36,11 +39,54 @@ export class NoteDownUI {
 
   hidden_roots: Set<RealLineNumber> = new Set();
 
-  constructor(ctx: CanvasRenderingContext2D, doc: NoteDownDocument) {
+  constructor(
+    name: string,
+    ctx: CanvasRenderingContext2D,
+    doc: NoteDownDocument,
+    storage: NoteDownStorageManager
+  ) {
+    this.name = name;
     this.doc = doc;
+    this.storage = storage;
 
     this.ctx = ctx;
+    this.rendered_lines = this.ctx.canvas.height / this.line_spacing;
+    for (let i = 0; i < this.rendered_lines; i++) {
+      this.lineToRealLine.set(i as RenderedLineNumber, i as RealLineNumber);
+    }
 
+    this.draw_layout();
+
+    this.storage.setActiveNotebook(name).then(async () => {
+      if (await this.storage.notebookIsInitialized()) {
+        await this.load();
+        this.clearAndRedraw();
+      } else {
+        await this.save();
+        await this.storage.initializeNotebook();
+      }
+      this.installEventHandlers();
+    });
+  }
+
+  async save() {
+    const state = {
+      lineToRealLine: this.lineToRealLine,
+      hidden_roots: this.hidden_roots,
+    };
+
+    await this.storage.saveUIState(state);
+  }
+
+  async load() {
+    const state = await this.storage.getUIState();
+    this.lineToRealLine = state.lineToRealLine;
+    this.hidden_roots = state.hidden_roots;
+
+    await this.doc.load(this.storage);
+  }
+
+  installEventHandlers() {
     const mouseDownHandler = this.mouseDownHandler.bind(this);
     this.ctx.canvas.addEventListener("mousedown", mouseDownHandler);
     this.ctx.canvas.addEventListener("touchstart", touchWrapper(mouseDownHandler));
@@ -64,13 +110,6 @@ export class NoteDownUI {
       }
       e.preventDefault();
     });
-
-    this.draw_layout();
-
-    this.rendered_lines = this.ctx.canvas.height / this.line_spacing;
-    for (let i = 0; i < this.rendered_lines; i++) {
-      this.lineToRealLine.set(i as RenderedLineNumber, i as RealLineNumber);
-    }
 
     const trackedPointer = new Set();
 
@@ -169,6 +208,7 @@ export class NoteDownUI {
       }
       // document.getElementById("log")!.innerHTML = `\n<br>Move ${e.pointerId}: ${e.clientX}, ${e.clientY}` + document.getElementById("log")!.innerHTML;
     });
+
   }
 
   // Draw ruled layout
@@ -245,7 +285,8 @@ export class NoteDownUI {
     this.curr_location = coords;
   }
 
-  toggleLineHidden(line: RenderedLineNumber): boolean {
+  async toggleLineHidden(line: RenderedLineNumber): Promise<boolean> {
+    // It is expected that the caller of this function calls save
     let real_line = this.lineToRealLine.get(line);
     if (real_line === undefined) {
       return false;
@@ -306,7 +347,7 @@ export class NoteDownUI {
             }
           }
           this.lineToRealLine.set((start_line + i) as RenderedLineNumber, target_line);
-          this.doc.updateLastLine(target_line);
+          await this.doc.updateLastLine(target_line, this.storage);
         }
 
         return true;
@@ -315,21 +356,22 @@ export class NoteDownUI {
     return false;
   }
 
-  clickHandler(e: InteractiveEvent) {
+  async clickHandler(e: InteractiveEvent) {
     const coords = this.getCanvasCoords(e);
     if (coords.x > this.left_margin) {
       return;
     }
 
     let curr_line = Math.floor(coords.y / this.line_spacing) as RenderedLineNumber;
-    if (this.toggleLineHidden(curr_line)) {
+    if (await this.toggleLineHidden(curr_line)) {
       this.clearAndRedraw();
     }
+    await this.save();
   }
 
   is_eraser = false;
 
-  mouseUpHandler(e: InteractiveEvent) {
+  async mouseUpHandler(e: InteractiveEvent) {
     if (this.margin_click_touch) {
       this.margin_click_touch = false;
       this.clickHandler(e);
@@ -344,12 +386,12 @@ export class NoteDownUI {
       this.currentStroke.draw(this.ctx, this.currentStroke.y_root);
       const phys_line = Math.floor(this.currentStroke.y_root / this.line_spacing) as RenderedLineNumber;
       const real_line = this.lineToRealLine.get(phys_line)!;
-      this.doc.add_stroke(real_line, this.currentStroke);
+      await this.doc.add_stroke(real_line, this.currentStroke, this.storage);
     }
     this.currentStroke = null;
   };
 
-  mouseMoveHandler(e: InteractiveEvent) {
+  async mouseMoveHandler(e: InteractiveEvent) {
     const coords = this.getCanvasCoords(e);
     if (!this.clicked || !this.curr_location) {
       if (this.margin_click_touch && coords.x > this.left_margin) {
@@ -376,9 +418,13 @@ export class NoteDownUI {
           updates.set(real_line, new_strokes);
         }
       });
+
+      const promises: Promise<void>[] = [];
       updates.forEach((strokes, line) => {
-        this.doc.linesToStrokes.set(line, strokes);
+        promises.push(this.doc.updateStrokes(line, strokes, this.storage));
       });
+      await Promise.all(promises);
+
       this.clearAndRedraw();
     } else {
       this.ctx.strokeStyle = "black";
@@ -397,7 +443,7 @@ export class NoteDownUI {
     this.lineToRealLine.set(start, this.lineToRealLine.get(end)!);
   }
 
-  scrollDown() {
+  async scrollDown() {
     for (let i = 0 as RenderedLineNumber; (i as number) < this.rendered_lines - 1; i++) {
       this.remap(i, i + 1 as RenderedLineNumber);
     }
@@ -405,27 +451,29 @@ export class NoteDownUI {
     let final_value = this.lineToRealLine.get(this.rendered_lines - 1 as RenderedLineNumber)!;
     final_value = final_value + 1 as RealLineNumber;
     this.lineToRealLine.set(this.rendered_lines - 1 as RenderedLineNumber, final_value);
+    await this.save();
   }
 
-  scrollUp() {
-    if (this.lineToRealLine.get(0 as RenderedLineNumber)! == 0) {
-      return;
-    }
-    for (let i = this.rendered_lines - 1; i >= 1; i--) {
-      const next_value = this.lineToRealLine.get((i - 1) as RenderedLineNumber)!;
-      this.lineToRealLine.set(i as RenderedLineNumber, next_value);
-    }
-
-    let first_value = this.lineToRealLine.get(0 as RenderedLineNumber)!;
-    first_value = first_value - 1 as RealLineNumber;
-    for (let root of this.hidden_roots) {
-      if (this.doc.childLines(root).includes(first_value)) {
-        first_value = root;
-        break;
-      }
-    }
-    this.lineToRealLine.set(0 as RenderedLineNumber, first_value);
+  async scrollUp() {
+  if (this.lineToRealLine.get(0 as RenderedLineNumber)! == 0) {
+    return;
   }
+  for (let i = this.rendered_lines - 1; i >= 1; i--) {
+    const next_value = this.lineToRealLine.get((i - 1) as RenderedLineNumber)!;
+    this.lineToRealLine.set(i as RenderedLineNumber, next_value);
+  }
+
+  let first_value = this.lineToRealLine.get(0 as RenderedLineNumber)!;
+  first_value = first_value - 1 as RealLineNumber;
+  for (let root of this.hidden_roots) {
+    if (this.doc.childLines(root).includes(first_value)) {
+      first_value = root;
+      break;
+    }
+  }
+  this.lineToRealLine.set(0 as RenderedLineNumber, first_value);
+  await this.save();
+}
 }
 
 

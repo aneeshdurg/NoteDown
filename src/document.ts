@@ -1,5 +1,6 @@
 import { Stroke } from './stroke.ts';
 import { RealLineNumber } from './types.ts';
+import { NoteDownStorageManager } from './storage_manager.ts';
 
 export class NoteDownDocument {
   last_line: number = 9;
@@ -9,6 +10,16 @@ export class NoteDownDocument {
   linesTofirstContent: Map<RealLineNumber, number> = new Map();
 
   constructor() { }
+
+  async load(storage: NoteDownStorageManager) {
+    this.last_line = (await storage.getLastLine()) || this.last_line;
+    const saved_lines = await storage.listSavedLines();
+    for (let saved_line of saved_lines) {
+      const line_data = await storage.getSavedLine(saved_line);
+      this.linesToStrokes.set(saved_line, line_data.strokes);
+      this.linesTofirstContent.set(saved_line, line_data.firstContent);
+    }
+  }
 
   indent(line: RealLineNumber) {
     if (!this.linesToStrokes.has(line)) {
@@ -74,30 +85,41 @@ export class NoteDownDocument {
     return section;
   }
 
-  add_stroke(curr_line: RealLineNumber, stroke: Stroke) {
+  async add_stroke(curr_line: RealLineNumber, stroke: Stroke, storage: NoteDownStorageManager) {
     if (!this.linesToStrokes.has(curr_line)) {
       this.linesToStrokes.set(curr_line, []);
     }
     this.linesToStrokes.get(curr_line)?.push(stroke);
 
-    let leftMostPoint = Infinity;
-    for (let i = 0; i < stroke.x_points.length; i++) {
-      // TODO:
-      // if (stroke.y_points[i] < 0 || stroke.y_points[i] >= line_spacing) {
-      //   continue;
-      // }
-
-      leftMostPoint = Math.min(leftMostPoint, stroke.x_points[i]);
-    }
+    let leftMostPoint = stroke.leftMostPoint();
     if (!this.linesTofirstContent.has(curr_line)) {
       this.linesTofirstContent.set(curr_line, leftMostPoint)
     }
     this.linesTofirstContent.set(curr_line,
       Math.min(this.linesTofirstContent.get(curr_line) || 0, leftMostPoint));
+
+
+    await this.saveToStorage(curr_line, storage);
   }
 
-  updateLastLine(new_last: RealLineNumber) {
+  async updateStrokes(line: RealLineNumber, strokes: Stroke[], storage: NoteDownStorageManager) {
+    this.linesToStrokes.set(line, strokes);
+    let leftMostPoint = Infinity;
+    strokes.forEach((s) => {
+      leftMostPoint = Math.min(leftMostPoint, s.leftMostPoint());
+    });
+    this.linesTofirstContent.set(line,
+      Math.min(this.linesTofirstContent.get(line) || 0, leftMostPoint));
+    await this.saveToStorage(line, storage);
+  }
+
+  async saveToStorage(line: RealLineNumber, storage: NoteDownStorageManager) {
+    await storage.saveLine(line, this.linesToStrokes.get(line)!, this.linesTofirstContent.get(line)!);
+  }
+
+  async updateLastLine(new_last: RealLineNumber, storage: NoteDownStorageManager) {
     // TODO The document can only ever grow with this implementation
     this.last_line = Math.max(this.last_line, new_last);
+    await storage.saveLastLine(this.last_line);
   }
 }

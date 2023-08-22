@@ -1,6 +1,6 @@
 export interface Point {
-  x: number
-  y: number
+  x: number;
+  y: number;
 }
 
 export class Stroke {
@@ -80,5 +80,19 @@ export class Stroke {
       }
     }
     return false;
+  }
+
+  leftMostPoint(): number {
+    let leftMostPoint = Infinity;
+    for (let i = 0; i < this.x_points.length; i++) {
+      // TODO:
+      // if (stroke.y_points[i] < 0 || stroke.y_points[i] >= line_spacing) {
+      //   continue;
+      // }
+
+      leftMostPoint = Math.min(leftMostPoint, this.x_points[i]);
+    }
+
+    return leftMostPoint;
   }
 };

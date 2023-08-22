@@ -1,5 +1,8 @@
 import { NoteDownDocument } from './document.ts';
 import { NoteDownUI } from './ui.ts';
+import { LocalStorageManager } from './local_storage_manager.ts';
+
+import localForage from "localforage";
 
 export async function main() {
   const canvas = <HTMLCanvasElement>document.getElementById("mycanvas");
@@ -10,8 +13,17 @@ export async function main() {
     return;
   }
 
+  const queryString = window.location.search;
+  const urlParams = new URLSearchParams(queryString);
+  const notebook = urlParams.get("notebook") || "default";
+  const forceCreate = urlParams.get("forcecreate") || false;
+  if (forceCreate) {
+    localForage.dropInstance({name: notebook});
+  }
+
+  const storage = new LocalStorageManager();
   const doc = new NoteDownDocument();
-  const ui = new NoteDownUI(ctx, doc);
+  const ui = new NoteDownUI(notebook, ctx, doc, storage);
 
   const eraser = <HTMLElement>document.getElementById("eraser");
   eraser.onclick = () => {
@@ -23,4 +35,5 @@ export async function main() {
     }
   };
   (window as any).notedown_ui = ui;
+  (window as any).localForage = localForage;
 }
