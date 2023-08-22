@@ -1,4 +1,4 @@
-import { Stroke } from './stroke.ts';
+import { Point, Stroke } from './stroke.ts';
 import { Opaque } from './opaque.ts';
 
 declare const RenderedLineNumberS: unique symbol
@@ -15,11 +15,45 @@ function ToRealLineNumber(n: number): RealLineNumber {
 
 class Document {
   last_line: number = 9;
+  indentWidth = 20;
 
   linesToStrokes: Map<RealLineNumber, Stroke[]> = new Map();
   linesTofirstContent: Map<RealLineNumber, number> = new Map();
 
   constructor() { }
+
+  indent(line: RealLineNumber) {
+    if (!this.linesToStrokes.has(line)) {
+      return;
+    }
+
+    const strokes = this.linesToStrokes.get(line)!;
+    for (let i = 0; i < strokes.length; i++) {
+      const stroke = strokes[i];
+      for (let j = 0; j < stroke.x_points.length; j++) {
+        stroke.x_points[j] += this.indentWidth;
+      }
+    }
+    this.linesTofirstContent.set(line,
+      this.linesTofirstContent.get(line)! + this.indentWidth);
+  }
+
+  unindent(line: RealLineNumber) {
+    if (!this.linesToStrokes.has(line)) {
+      return;
+    }
+
+    // TODO guard against < 0?
+    const strokes = this.linesToStrokes.get(line)!;
+    for (let i = 0; i < strokes.length; i++) {
+      const stroke = strokes[i];
+      for (let j = 0; j < stroke.x_points.length; j++) {
+        stroke.x_points[j] -= this.indentWidth;
+      }
+    }
+    this.linesTofirstContent.set(line,
+      this.linesTofirstContent.get(line)! - this.indentWidth);
+  }
 
   childLines(root: RealLineNumber) {
     let section: RealLineNumber[] = [];
@@ -42,7 +76,7 @@ class Document {
         }
         continue;
       }
-      if (indent < firstContent && Math.abs(indent - firstContent) > 20) {
+      if (indent < firstContent && Math.abs(indent - firstContent) > this.indentWidth) {
         section.push(lineNo);
       } else {
         break;
@@ -103,7 +137,7 @@ class NoteDownUI {
   ctx: CanvasRenderingContext2D
   clicked = false;
   currentStroke: Stroke | null = null;
-  curr_location: { x: number, y: number } | null = null;
+  curr_location: Point | null = null;
   margin_click_touch = false;
 
   line_spacing = 100;
@@ -118,10 +152,6 @@ class NoteDownUI {
     this.doc = doc;
 
     this.ctx = ctx;
-
-    this.ctx.canvas.addEventListener("touchstart", this.genericTouchStart.bind(this));
-    this.ctx.canvas.addEventListener("touchend", this.genericTouchEnd.bind(this));
-    this.ctx.canvas.addEventListener("touchmove", this.genericTouchMove.bind(this));
 
     const mouseDownHandler = this.mouseDownHandler.bind(this);
     this.ctx.canvas.addEventListener("mousedown", mouseDownHandler);
@@ -156,7 +186,9 @@ class NoteDownUI {
 
     const trackedPointer = new Set();
 
-    let scrollPos: { x: number, y: number } | null = null;
+    let scrollPos: Point | null = null;
+    let lineToIndent: RenderedLineNumber | null = null;
+    let indentDirection: -1 | 0 | 1 | null = 0;
 
     this.ctx.canvas.addEventListener("pointerdown", (e: PointerEvent) => {
       if (e.pointerType != "touch") {
@@ -172,6 +204,7 @@ class NoteDownUI {
       } else {
         if (coords.x >= this.left_margin) {
           scrollPos = coords;
+          lineToIndent = ToRenderedLineNumber(Math.floor(coords.y / this.line_spacing));
         }
         document.getElementById("log")!.innerHTML = `\n<br>   ${coords.x}, ${coords.y}` + document.getElementById("log")!.innerHTML;
       }
@@ -183,13 +216,29 @@ class NoteDownUI {
     this.ctx.canvas.addEventListener("pointercancel", (e: PointerEvent) => {
       document.getElementById("log")!.innerHTML = `\n<br>Cancel ${e.pointerId}: ${e.pointerType}` + document.getElementById("log")!.innerHTML;
       trackedPointer.delete(e.pointerId);
+      scrollPos = null;
+      lineToIndent = null;
+      indentDirection = 0;
     });
     this.ctx.canvas.addEventListener("pointerup", (e: PointerEvent) => {
       if (e.pointerType != "touch") {
         return;
       }
 
+      if (lineToIndent !== null) {
+        const real_line = this.lineToRealLine.get(lineToIndent)!;
+        document.getElementById("log")!.innerHTML = `\n<br>  Indent ${indentDirection}, ${real_line}` + document.getElementById("log")!.innerHTML;
+        if (indentDirection == 1) {
+          this.doc.unindent(real_line);
+        } else if (indentDirection == -1) {
+          this.doc.indent(real_line);
+        }
+        this.clearAndRedraw();
+      }
+
       scrollPos = null;
+      lineToIndent = null;
+      indentDirection = 0;
 
       trackedPointer.delete(e.pointerId);
       document.getElementById("log")!.innerHTML = `\n<br>Up   ${e.pointerId}: ${e.clientX}, ${e.clientY} ${e.pointerType}` + document.getElementById("log")!.innerHTML;
@@ -207,7 +256,8 @@ class NoteDownUI {
       // document.getElementById("log")!.innerHTML = `\n<br>   ${scrollPos === null}` + document.getElementById("log")!.innerHTML;
       if (scrollPos) {
         const deltaY = scrollPos.y - coords.y;
-        if (Math.abs(deltaY) > 10) {
+        if (Math.abs(deltaY) > 20) {
+          lineToIndent = null;
           if (deltaY < 0) {
             this.scrollUp();
             this.clearAndRedraw();
@@ -216,28 +266,21 @@ class NoteDownUI {
             this.clearAndRedraw();
           }
           scrollPos = coords;
+        } else {
+          const deltaX = scrollPos.x - coords.x;
+          if (Math.abs(deltaX) > 10) {
+            let newIndentDirection = deltaX > 0 ? 1 : -1;
+            if (indentDirection == 0) {
+              indentDirection = (newIndentDirection as (-1 | 1 | 0));
+            } else if (indentDirection != newIndentDirection) {
+              indentDirection = null;
+            }
+          }
+          document.getElementById("log")!.innerHTML = `\n<br>   x: ${deltaX} ${indentDirection} ${lineToIndent}` + document.getElementById("log")!.innerHTML;
         }
-        // document.getElementById("log")!.innerHTML = `\n<br>   ${deltaY}` + document.getElementById("log")!.innerHTML;
       }
       // document.getElementById("log")!.innerHTML = `\n<br>Move ${e.pointerId}: ${e.clientX}, ${e.clientY}` + document.getElementById("log")!.innerHTML;
     });
-  }
-
-  genericTouchStart(e: TouchEvent) {
-    // let counter = 0;
-    // for (let i = 0; i < e.changedTouches.length; i++) {
-    //   if (e.changedTouches[i].radiusX == 0 && e.changedTouches[i].radiusY == 0) {
-    //     continue;
-    //   }
-    //   counter += 1;
-    // }
-    // document.getElementById("log")!.innerHTML = counter.toString() + "," + e.changedTouches.length;
-  }
-
-  genericTouchMove() {
-  }
-
-  genericTouchEnd() {
   }
 
   // Draw ruled layout
@@ -261,7 +304,7 @@ class NoteDownUI {
     this.ctx.clearRect(0, 0, this.ctx.canvas.width, this.ctx.canvas.height);
   }
 
-  getCanvasCoords(e: InteractiveEvent) {
+  getCanvasCoords(e: InteractiveEvent): Point {
     const rect = this.ctx.canvas.getBoundingClientRect();
     const x = (e.clientX - rect.left) * this.ctx.canvas.width / rect.width;
     const y = (e.clientY - rect.top) * this.ctx.canvas.height / rect.height;
@@ -396,6 +439,8 @@ class NoteDownUI {
     }
   }
 
+  is_eraser = false;
+
   mouseUpHandler(e: InteractiveEvent) {
     if (this.margin_click_touch) {
       this.margin_click_touch = false;
@@ -407,10 +452,12 @@ class NoteDownUI {
     }
     this.clicked = false;
     this.curr_location = null;
-    this.currentStroke.draw(this.ctx, this.currentStroke.y_root);
-    const phys_line = ToRenderedLineNumber(Math.floor(this.currentStroke.y_root / this.line_spacing));
-    const real_line = this.lineToRealLine.get(phys_line)!;
-    this.doc.add_stroke(real_line, this.currentStroke);
+    if (!this.is_eraser) {
+      this.currentStroke.draw(this.ctx, this.currentStroke.y_root);
+      const phys_line = ToRenderedLineNumber(Math.floor(this.currentStroke.y_root / this.line_spacing));
+      const real_line = this.lineToRealLine.get(phys_line)!;
+      this.doc.add_stroke(real_line, this.currentStroke);
+    }
     this.currentStroke = null;
   };
 
@@ -426,15 +473,36 @@ class NoteDownUI {
       return;
     }
 
-    this.ctx.strokeStyle = "black";
-    this.ctx.lineWidth = 2;
+    if (this.is_eraser) {
+      // TODO move this to Document
+      const updates = new Map<RealLineNumber, Stroke[]>;
+      this.lineToRealLine.forEach((real_line, rendered_line) => {
+        const y_root = rendered_line * this.line_spacing;
+        const strokes = this.doc.linesToStrokes.get(real_line);
+        if (strokes === undefined) {
+          return;
+        }
 
-    this.ctx.beginPath();
-    this.ctx.moveTo(this.curr_location.x, this.curr_location.y);
-    this.ctx.lineTo(coords.x, coords.y);
-    this.ctx.stroke();
+        const new_strokes = strokes.filter((s) => !s.intersects(y_root, coords, this.curr_location!));
+        if (new_strokes.length < strokes.length) {
+          updates.set(real_line, new_strokes);
+        }
+      });
+      updates.forEach((strokes, line) => {
+        this.doc.linesToStrokes.set(line, strokes);
+      });
+      this.clearAndRedraw();
+    } else {
+      this.ctx.strokeStyle = "black";
+      this.ctx.lineWidth = 2;
+
+      this.ctx.beginPath();
+      this.ctx.moveTo(this.curr_location.x, this.curr_location.y);
+      this.ctx.lineTo(coords.x, coords.y);
+      this.ctx.stroke();
+      this.currentStroke?.add(coords.x, coords.y);
+    }
     this.curr_location = coords;
-    this.currentStroke?.add(coords.x, coords.y);
   }
 
   remap(start: RenderedLineNumber, end: RenderedLineNumber) {
@@ -484,5 +552,14 @@ export async function main() {
   const doc = new Document();
   const ui = new NoteDownUI(ctx, doc);
 
+  const eraser = <HTMLElement>document.getElementById("eraser");
+  eraser.onclick = () => {
+    ui.is_eraser = !ui.is_eraser;
+    if (ui.is_eraser) {
+      eraser.innerText = "Pen";
+    } else {
+      eraser.innerText = "Eraser";
+    }
+  };
   (window as any).notedown_ui = ui;
 }
