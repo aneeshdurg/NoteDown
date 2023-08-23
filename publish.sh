@@ -1,4 +1,5 @@
 #!/usr/bin/bash
+set -ex
 rm -rf dist
 npm run build
 sed 's/src\/main.ts/note-down.js/' index.html > dist/index.html

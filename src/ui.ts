@@ -135,11 +135,8 @@ export class NoteDownUI {
         scrollPos = null;
       } else {
         if (coords.x >= this.left_margin) {
-          scrollPos = coords;
+          scrollPos = this.getUntransformedCanvasCoords(e);
           lineToIndent = Math.floor(coords.y / this.line_spacing) as RenderedLineNumber;
-          if (this.y_offset >= 0.5) {
-            lineToIndent++;
-          }
         }
       }
     });
@@ -180,7 +177,7 @@ export class NoteDownUI {
         return;
       }
 
-      const coords = this.getCanvasCoords(e);
+      const coords = this.getUntransformedCanvasCoords(e);
       if (scrollPos) {
         const deltaX = scrollPos.x - coords.x;
         if (Math.abs(deltaX) > 10) {
@@ -231,6 +228,12 @@ export class NoteDownUI {
   }
 
   getCanvasCoords(e: InteractiveEvent): Point {
+    const pt = this.getUntransformedCanvasCoords(e);
+    pt.y += this.y_offset * this.line_spacing;
+    return pt;
+  }
+
+  getUntransformedCanvasCoords(e: InteractiveEvent): Point {
     const rect = this.ctx.canvas.getBoundingClientRect();
     const x = (e.clientX - rect.left) * this.ctx.canvas.width / rect.width;
     const y = (e.clientY - rect.top) * this.ctx.canvas.height / rect.height;
@@ -384,7 +387,11 @@ export class NoteDownUI {
     this.clicked = false;
     this.curr_location = null;
     if (!this.is_eraser) {
+      this.ctx.save();
+      this.ctx.transform(1, 0, 0, 1, 0, -1 * this.y_offset * this.line_spacing);
       this.currentStroke.draw(this.ctx, this.currentStroke.y_root);
+      this.ctx.restore();
+
       const phys_line = Math.floor(this.currentStroke.y_root / this.line_spacing) as RenderedLineNumber;
       let real_line = this.lineToRealLine.get(phys_line)!;
       let min_y = Infinity;
@@ -445,10 +452,14 @@ export class NoteDownUI {
       this.ctx.strokeStyle = "black";
       this.ctx.lineWidth = 2;
 
+      this.ctx.save();
+      this.ctx.transform(1, 0, 0, 1, 0, -1 * this.y_offset * this.line_spacing);
       this.ctx.beginPath();
       this.ctx.moveTo(this.curr_location.x, this.curr_location.y);
       this.ctx.lineTo(coords.x, coords.y);
       this.ctx.stroke();
+      this.ctx.restore();
+
       this.currentStroke?.add(coords.x, coords.y);
     }
     this.curr_location = coords;
