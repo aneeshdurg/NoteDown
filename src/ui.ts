@@ -123,6 +123,17 @@ export class NoteDownUI {
     let lineToIndent: RenderedLineNumber | null = null;
     let indentDirection: -1 | 0 | 1 | null = 0;
 
+    let lineToMove: RenderedLineNumber | null = null;
+    let movedToOtherLine = false;
+    let moveOperationID = 0;
+    const longPressTime_ms = 750;
+
+    const moveCancel = () => {
+      lineToMove = null;
+      movedToOtherLine = false;
+      moveOperationID += 1;
+    };
+
     this.ctx.canvas.addEventListener("pointerdown", (e: PointerEvent) => {
       if (e.pointerType != "touch") {
         return;
@@ -134,9 +145,21 @@ export class NoteDownUI {
       if (trackedPointer.size > 1) {
         scrollPos = null;
       } else {
+        const curr_line = Math.floor(coords.y / this.line_spacing) as RenderedLineNumber;
         if (coords.x >= this.left_margin) {
           scrollPos = this.getUntransformedCanvasCoords(e);
-          lineToIndent = Math.floor(coords.y / this.line_spacing) as RenderedLineNumber;
+          lineToIndent = curr_line;
+        } else {
+          lineToMove = curr_line;
+          const currentOpID = moveOperationID;
+          setTimeout(() => {
+            if (moveOperationID == currentOpID && !movedToOtherLine) {
+              // TODO should this be passed in as a callback?
+              let retval = navigator.vibrate([100]);
+              console.log(retval);
+              moveCancel();
+            }
+          }, longPressTime_ms);
         }
       }
     });
@@ -147,19 +170,32 @@ export class NoteDownUI {
       lineToIndent = null;
       indentDirection = 0;
     });
-    this.ctx.canvas.addEventListener("pointerup", (e: PointerEvent) => {
+    this.ctx.canvas.addEventListener("pointerup", async (e: PointerEvent) => {
       if (e.pointerType != "touch") {
         return;
       }
 
       if (lineToIndent !== null) {
         const real_line = this.lineToRealLine.get(lineToIndent)!;
+        const indent_children = this.hidden_roots.has(real_line);
         if (indentDirection == 1) {
-          this.doc.unindent(real_line);
+          await this.doc.indent(real_line, -1, indent_children, this.storage);
         } else if (indentDirection == -1) {
-          this.doc.indent(real_line);
+          await this.doc.indent(real_line, 1, indent_children, this.storage);
         }
         this.clearAndRedraw();
+      } else if (lineToMove !== null) {
+        const coords = this.getCanvasCoords(e);
+        let curr_line = Math.floor(coords.y / this.line_spacing) as RenderedLineNumber;
+        if (movedToOtherLine && curr_line !== lineToMove) {
+          if (curr_line > lineToMove) {
+            // the target is below the initial point, drop the line one line
+            // below
+            curr_line++;
+          }
+          await this.move(lineToMove, curr_line);
+        }
+        moveCancel();
       }
 
       scrollPos = null;
@@ -201,9 +237,76 @@ export class NoteDownUI {
           }
           scrollPos = coords;
         }
+      } else {
+        if (coords.x >= this.left_margin) {
+          moveCancel();
+        } else {
+          let curr_line = Math.floor(coords.y / this.line_spacing) as RenderedLineNumber;
+          if (curr_line != lineToMove) {
+            movedToOtherLine = true;
+          }
+        }
       }
     });
 
+  }
+
+  async move(src: RenderedLineNumber, dst: RenderedLineNumber) {
+    const real_line_src = this.lineToRealLine.get(src)!;
+    const real_line_dst = this.lineToRealLine.get(dst)!;
+    console.log("Move", real_line_src, " -> ", real_line_dst);
+    const move_children = this.hidden_roots.has(real_line_src);
+    let num_shift = 1;
+    const hidden_children: Set<RealLineNumber> = new Set();
+    if (move_children) {
+      const children = this.doc.childLines(real_line_src);
+      num_shift += children.length;
+      for (let child of children) {
+        if (this.hidden_roots.has(child)) {
+          hidden_children.add(child);
+          this.hidden_roots.delete(child);
+        }
+      }
+      this.hidden_roots.delete(real_line_src);
+    }
+    await this.doc.moveLines(real_line_src, real_line_dst, move_children, this.storage);
+    const mapLineNumber = (x: RealLineNumber) => {
+      // First map the line as if the src lines were completely deleted
+      if (x > real_line_src) {
+        x = x - num_shift as RealLineNumber;
+      }
+      // Next account for the shift after reinserting the lines
+      if (x >= (real_line_dst - num_shift)) {
+        x = x + num_shift as RealLineNumber;
+      }
+      return x;
+    };
+
+    const final_hidden_roots: Set<RealLineNumber> = new Set();
+    for (let root of this.hidden_roots) {
+      final_hidden_roots.add(mapLineNumber(root));
+    }
+    this.hidden_roots = final_hidden_roots;
+
+    if (move_children) {
+      this.hidden_roots.add(real_line_dst);
+      for (let root of hidden_children) {
+        this.hidden_roots.add(real_line_dst - real_line_src + root as RealLineNumber);
+      }
+    }
+
+    let curr_line = this.lineToRealLine.get(0 as RenderedLineNumber)!;
+    for (let i = 0 as RenderedLineNumber; i < this.rendered_lines; i++) {
+      console.log(i, " -> ", curr_line);
+      this.lineToRealLine.set(i, curr_line);
+      if (this.hidden_roots.has(curr_line)) {
+        curr_line = curr_line + this.doc.childLines(curr_line).length as RealLineNumber;
+      }
+      // always increment by 1
+      curr_line++;
+    }
+    this.clearAndRedraw();
+    this.save();
   }
 
   // Draw ruled layout
@@ -400,13 +503,10 @@ export class NoteDownUI {
         min_y = Math.min(y, min_y);
         max_y = Math.max(y, max_y);
       }
-      console.log(min_y, this.line_spacing - min_y % this.line_spacing, max_y, max_y % this.line_spacing);
       const inset = this.line_spacing - min_y % this.line_spacing;
-      console.log(">", inset, this.line_spacing / 4, max_y - min_y, this.line_spacing)
       if (inset < this.line_spacing / 4 && (max_y - min_y) >= this.line_spacing) {
         real_line++;
         this.currentStroke.y_points = this.currentStroke.y_points.map((y) => y - this.line_spacing);
-        console.log(" change line", real_line);
       }
       await this.doc.add_stroke(real_line, this.currentStroke, this.storage);
     }
@@ -489,7 +589,6 @@ export class NoteDownUI {
   }
 
   async scrollUp() {
-    console.log(this.y_offset);
     if (this.y_offset > 0) {
       this.y_offset -= 0.01;
       if (this.y_offset >= 0.01) {
@@ -519,5 +618,3 @@ export class NoteDownUI {
     await this.save();
   }
 }
-
-

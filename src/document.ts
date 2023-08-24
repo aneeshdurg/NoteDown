@@ -16,12 +16,15 @@ export class NoteDownDocument {
     const saved_lines = await storage.listSavedLines();
     for (let saved_line of saved_lines) {
       const line_data = await storage.getSavedLine(saved_line);
-      this.linesToStrokes.set(saved_line, line_data.strokes);
-      this.linesTofirstContent.set(saved_line, line_data.firstContent);
+      if (line_data.strokes === null) {
+      } else {
+        this.linesToStrokes.set(saved_line, line_data.strokes);
+        this.linesTofirstContent.set(saved_line, line_data.firstContent!);
+      }
     }
   }
 
-  indent(line: RealLineNumber) {
+  async indent(line: RealLineNumber, direction: 1 | -1, indent_children: boolean, storage: NoteDownStorageManager) {
     if (!this.linesToStrokes.has(line)) {
       return;
     }
@@ -30,28 +33,22 @@ export class NoteDownDocument {
     for (let i = 0; i < strokes.length; i++) {
       const stroke = strokes[i];
       for (let j = 0; j < stroke.x_points.length; j++) {
-        stroke.x_points[j] += this.indentWidth;
+        stroke.x_points[j] += direction * this.indentWidth;
       }
     }
     this.linesTofirstContent.set(line,
-      this.linesTofirstContent.get(line)! + this.indentWidth);
-  }
+      this.linesTofirstContent.get(line)! + direction * this.indentWidth);
 
-  unindent(line: RealLineNumber) {
-    if (!this.linesToStrokes.has(line)) {
-      return;
-    }
+    const promises: Promise<void>[] = [];
+    promises.push(this.saveToStorage(line, storage));
 
-    // TODO guard against < 0?
-    const strokes = this.linesToStrokes.get(line)!;
-    for (let i = 0; i < strokes.length; i++) {
-      const stroke = strokes[i];
-      for (let j = 0; j < stroke.x_points.length; j++) {
-        stroke.x_points[j] -= this.indentWidth;
+    if (indent_children) {
+      for (let child of this.childLines(line)) {
+        promises.push(this.indent(child, direction, false, storage));
       }
     }
-    this.linesTofirstContent.set(line,
-      this.linesTofirstContent.get(line)! - this.indentWidth);
+
+    await Promise.all(promises);
   }
 
   childLines(root: RealLineNumber) {
@@ -120,5 +117,65 @@ export class NoteDownDocument {
     // TODO The document can only ever grow with this implementation
     this.last_line = Math.max(this.last_line, new_last);
     await storage.saveLastLine(this.last_line);
+  }
+
+  async moveLines(src: RealLineNumber, dst: RealLineNumber, move_children: boolean, storage: NoteDownStorageManager) {
+    const remap_amt = 1 + (move_children ? this.childLines(src).length : 0);
+
+    const src_strokes: (Stroke[] | undefined)[] = []
+    const src_firstContents: (number[] | undefined) = []
+    for (let i = 0; i < remap_amt; i++) {
+      const strokes = this.linesToStrokes.get(src + i as RealLineNumber)!;
+      const firstContent = this.linesTofirstContent.get(src + i as RealLineNumber)!;
+
+      src_strokes.push(strokes);
+      src_firstContents.push(firstContent);
+    }
+
+    // Remove the lines from the src document
+    for (let i = src; i < this.last_line; i++) {
+      const line = i + remap_amt as RealLineNumber
+      if (this.linesToStrokes.has(line) !== undefined) {
+        this.linesToStrokes.set(i, this.linesToStrokes.get(line)!);
+        this.linesTofirstContent.set(i, this.linesTofirstContent.get(line)!);
+      } else {
+        this.linesToStrokes.delete(i);
+        this.linesTofirstContent.delete(i);
+      }
+    }
+    this.last_line -= remap_amt;
+
+    if (dst > src) {
+      dst = dst - remap_amt as RealLineNumber;
+    }
+
+    // Create a gap where the new lines will go
+    for (let i = this.last_line as RealLineNumber; i >= dst; i--) {
+      const line = i + remap_amt as RealLineNumber;
+      if (this.linesToStrokes.has(i) !== undefined) {
+        this.linesToStrokes.set(line, this.linesToStrokes.get(i)!);
+        this.linesTofirstContent.set(line, this.linesTofirstContent.get(i)!);
+      } else {
+        this.linesToStrokes.delete(line);
+        this.linesTofirstContent.delete(line);
+      }
+    }
+    this.last_line += remap_amt;
+
+    // Paste the new lines
+    for (let i = 0; i < remap_amt; i++) {
+      const line = dst + i as RealLineNumber
+      if (src_strokes[i] !== undefined) {
+        this.linesToStrokes.set(line, src_strokes[i]!);
+        this.linesTofirstContent.set(line, src_firstContents[i]);
+      } else {
+        this.linesToStrokes.delete(line);
+        this.linesTofirstContent.delete(line);
+      }
+    }
+
+    for (let i = 0 as RealLineNumber; i < this.last_line; i++) {
+      await this.saveToStorage(i, storage);
+    }
   }
 }

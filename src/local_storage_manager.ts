@@ -43,15 +43,15 @@ export class LocalStorageManager implements NoteDownStorageManager {
     return this.saved_lines;
   }
 
-  async getSavedLine(lineNumber: RealLineNumber): Promise<{ strokes: Stroke[], firstContent: number }> {
-    const strokes_raw: any[] = (await this.store.getItem(`content-strokes-line${lineNumber}`))!;
-    const strokes = strokes_raw.map((o: any): Stroke => {
+  async getSavedLine(lineNumber: RealLineNumber): Promise<{ strokes: Stroke[] | null, firstContent: number | null }> {
+    const strokes_raw: any[] | null = await this.store.getItem(`content-strokes-line${lineNumber}`);
+    const strokes = strokes_raw ? strokes_raw.map((o: any): Stroke => {
       const s = new Stroke(o.y_root);
       s.x_points = o.x_points;
       s.y_points = o.y_points;
       return s;
-    });
-    const firstContent: number = (await this.store.getItem(`content-firstContent-line${lineNumber}`))!;
+    }) : null;
+    const firstContent: number | null = await this.store.getItem(`content-firstContent-line${lineNumber}`);
     return { strokes: strokes, firstContent: firstContent };
   }
 
