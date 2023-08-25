@@ -5,6 +5,7 @@ import { Point } from './stroke.ts';
 
 type CallbackRetType = Promise<void> | void;
 type Callback = (coords: Point) => CallbackRetType;
+type CancelableCallback = (coords: Point) => Promise<boolean> | boolean | CallbackRetType;
 
 export class DragEvent {
   start: Point;
@@ -26,14 +27,14 @@ export interface RegionEvents {
   dragCancel?: (() => CallbackRetType) | undefined;
   dragEnd?: Callback | undefined;
   tap?: Callback | undefined;
-  longPress?: Callback | undefined;
+  longPress?: CancelableCallback | undefined;
 
   // pen gestures
   penDrag?: ((e: DragEvent) => CallbackRetType) | undefined;
   penDragCancel?: (() => CallbackRetType) | undefined;
   penDragEnd?: Callback | undefined;
   penTap?: Callback | undefined;
-  penLongPress?: Callback | undefined;
+  penLongPress?: CancelableCallback | undefined;
 };
 
 const longPressTime_ms = 750;
@@ -211,13 +212,14 @@ export class Region {
       const cb = type === "touch" ? cbs.longPress : cbs.penLongPress;
 
       if (cb) {
-        setTimeout(() => {
+        setTimeout(async () => {
           const details = trackedPointer.get(e.pointerId);
           if (details === undefined || details.moved) {
             return;
           }
-          cb(details.initialPos);
-          //pointerCancel(type, e);
+          if (await cb(details.initialPos)) {
+            pointerCancel(type, e);
+          }
         }, longPressTime_ms);
       }
     };

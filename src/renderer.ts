@@ -222,7 +222,10 @@ export class NoteDownRenderer {
       },
       dragCancel: moveCancel,
       tap: (pt: Point) => console.log("TAP", pt),
-      longPress: (_: Point) => navigator.vibrate([100]),
+      longPress: (_: Point) => {
+        navigator.vibrate([100]);
+        return true;
+      },
 
       penTap: (pt: Point) => {
         const coords = this.transformCoords(pt);
