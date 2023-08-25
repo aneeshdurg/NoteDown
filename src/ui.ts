@@ -3,7 +3,8 @@
  **/
 import { Point } from './stroke.ts';
 
-type Callback = (coords: Point) => Promise<void>;
+type CallbackRetType = Promise<void> | void;
+type Callback = (coords: Point) => CallbackRetType;
 
 export class DragEvent {
   start: Point;
@@ -18,21 +19,21 @@ export class DragEvent {
 type PointerType = "touch" | "pen";
 
 export interface RegionEvents {
-  wheel: ((e: WheelEvent) => Promise<void>) | undefined;
+  wheel?: ((e: WheelEvent) => CallbackRetType) | undefined;
 
   // touch gestures
-  drag: ((e: DragEvent) => Promise<void>) | undefined;
-  dragCancel: (() => Promise<void>) | undefined;
-  dragEnd: Callback | undefined;
-  tap: Callback | undefined;
-  longPress: Callback | undefined;
+  drag?: ((e: DragEvent) => CallbackRetType) | undefined;
+  dragCancel?: (() => CallbackRetType) | undefined;
+  dragEnd?: Callback | undefined;
+  tap?: Callback | undefined;
+  longPress?: Callback | undefined;
 
   // pen gestures
-  penDrag: ((e: DragEvent) => Promise<void>) | undefined;
-  penDragCancel: (() => Promise<void>) | undefined;
-  penDragEnd: Callback | undefined;
-  penTap: Callback | undefined;
-  penLongPress: Callback | undefined;
+  penDrag?: ((e: DragEvent) => CallbackRetType) | undefined;
+  penDragCancel?: (() => CallbackRetType) | undefined;
+  penDragEnd?: Callback | undefined;
+  penTap?: Callback | undefined;
+  penLongPress?: Callback | undefined;
 };
 
 const longPressTime_ms = 750;
