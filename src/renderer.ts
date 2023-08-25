@@ -172,7 +172,6 @@ export class NoteDownRenderer {
     mainbody.registerRegion(this.ctx.canvas, mainbody_cbs);
 
     // Margin events
-
     let lineToMove: RenderedLineNumber | null = null;
     let movedToOtherLine = false;
     let moveOperationID = 0;
@@ -200,6 +199,17 @@ export class NoteDownRenderer {
           lineToMove = start_line;
         }
         setMoveTarget(end);
+
+        this.clearAndRedraw();
+        this.ctx.beginPath();
+        this.ctx.strokeStyle = "black";
+        this.ctx.lineWidth = 5;
+        this.ctx.moveTo(this.left_margin + 30, end.y);
+        this.ctx.lineTo(this.left_margin + 75, end.y);
+        this.ctx.lineTo(this.left_margin + 60, end.y + 10);
+        this.ctx.moveTo(this.left_margin + 75, end.y);
+        this.ctx.lineTo(this.left_margin + 60, end.y - 10);
+        this.ctx.stroke();
       },
       dragEnd: async (pt: Point) => {
         if (lineToMove !== null) {
@@ -212,6 +222,8 @@ export class NoteDownRenderer {
               curr_line++;
             }
             await this.move(lineToMove, curr_line);
+          } else {
+            this.clearAndRedraw();
           }
           moveCancel();
         }
@@ -222,7 +234,6 @@ export class NoteDownRenderer {
         navigator.vibrate([100]);
         return true;
       },
-
       penTap: (pt: Point) => {
         const coords = this.transformCoords(pt);
         this.clickHandler(coords);
