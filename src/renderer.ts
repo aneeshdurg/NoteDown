@@ -122,57 +122,55 @@ export class NoteDownRenderer {
 
     let scrollPos: Point | null = null;
     let lineToIndent: RenderedLineNumber | null = null;
-    let indentDirection: -1 | 0 | 1 | null = 0;
+    let mode: "scroll" | "indent" = "scroll";
 
     const mainbody = new Region({ x: this.left_margin, y: 0 }, this.ctx.canvas.width - this.left_margin, this.ctx.canvas.height, 5, 0);
     const mainbody_cbs = {
-      drag: (evt: DragEvent) => {
+      drag: async (evt: DragEvent) => {
         if (scrollPos === null) {
-          const curr_line = Math.floor(this.transformCoords(evt.start).y / this.line_spacing) as RenderedLineNumber;
           // save the position without transforming
           scrollPos = evt.start;
-          lineToIndent = curr_line;
         }
-
-        const deltaX = scrollPos.x - evt.end.x;
-        if (Math.abs(deltaX) > 10) {
-          let newIndentDirection = deltaX > 0 ? 1 : -1;
-          if (indentDirection == 0) {
-            indentDirection = (newIndentDirection as (-1 | 1 | 0));
-          } else if (indentDirection != newIndentDirection) {
-            indentDirection = null;
+        if (mode == "scroll") {
+          const deltaY = scrollPos.y - evt.end.y;
+          if (Math.abs(deltaY) > 10) {
+            for (let i = 0; i < 25; i++) {
+              lineToIndent = null;
+              if (deltaY < 0) {
+                this.scrollUp();
+              } else {
+                this.scrollDown();
+              }
+              this.clearAndRedraw();
+            }
+            scrollPos = evt.end;
           }
-        }
-        const deltaY = scrollPos.y - evt.end.y;
-        if (Math.abs(deltaY) > 10) {
-          for (let i = 0; i < 25; i++) {
-            lineToIndent = null;
-            if (deltaY < 0) {
-              this.scrollUp();
-            } else {
-              this.scrollDown();
+        } else {
+          const deltaX = scrollPos.x - evt.end.x;
+          if (Math.abs(deltaX) > 10) {
+            let indentDirection = deltaX > 0 ? 1 : -1;
+            const real_line = this.lineToRealLine.get(lineToIndent!)!;
+            const indent_children = this.hidden_roots.has(real_line);
+            if (indentDirection == 1) {
+              await this.doc.indent(real_line, -1, indent_children, this.storage);
+            } else if (indentDirection == -1) {
+              await this.doc.indent(real_line, 1, indent_children, this.storage);
             }
             this.clearAndRedraw();
+            scrollPos = evt.end;
           }
-          scrollPos = evt.end;
-        }
-      },
-      dragEnd: async (_: Point) => {
-        if (lineToIndent !== null) {
-          const real_line = this.lineToRealLine.get(lineToIndent)!;
-          const indent_children = this.hidden_roots.has(real_line);
-          if (indentDirection == 1) {
-            await this.doc.indent(real_line, -1, indent_children, this.storage);
-          } else if (indentDirection == -1) {
-            await this.doc.indent(real_line, 1, indent_children, this.storage);
-          }
-          this.clearAndRedraw();
         }
       },
       dragCancel: () => {
         scrollPos = null;
         lineToIndent = null;
-        indentDirection = 0;
+        mode = "scroll";
+      },
+      longPress: (pt: Point) => {
+        navigator.vibrate([100]);
+        mode = "indent";
+        const curr_line = Math.floor(this.transformCoords(pt).y / this.line_spacing) as RenderedLineNumber;
+        lineToIndent = curr_line;
       },
     };
     mainbody.registerRegion(this.ctx.canvas, mainbody_cbs);

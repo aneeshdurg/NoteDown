@@ -217,7 +217,7 @@ export class Region {
             return;
           }
           cb(details.initialPos);
-          pointerCancel(type, e);
+          //pointerCancel(type, e);
         }, longPressTime_ms);
       }
     };
