@@ -10,7 +10,7 @@ export interface NoteDownStorageManager {
 
   saveLine: (lineNumber: RealLineNumber, strokes: Stroke[], firstContent: number) => Promise<void>;
   listSavedLines: () => Promise<Iterable<RealLineNumber>>;
-  getSavedLine: (lineNumber: RealLineNumber) => Promise<{ strokes: Stroke[] | null, firstContent: number | null }>;
+  getSavedLine: (lineNumber: RealLineNumber, scale_factor: number, old_margin: number, new_margin: number) => Promise<{ strokes: Stroke[] | null, firstContent: number | null }>;
 
   saveLastLine: (lastLine: number) => Promise<void>;
   getLastLine: () => Promise<number | null>;

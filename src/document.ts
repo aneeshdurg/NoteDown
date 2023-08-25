@@ -11,11 +11,11 @@ export class NoteDownDocument {
 
   constructor() { }
 
-  async load(storage: NoteDownStorageManager) {
+  async load(storage: NoteDownStorageManager, scale_factor: number, old_margin: number, new_margin: number) {
     this.last_line = (await storage.getLastLine()) || this.last_line;
     const saved_lines = await storage.listSavedLines();
     for (let saved_line of saved_lines) {
-      const line_data = await storage.getSavedLine(saved_line);
+      const line_data = await storage.getSavedLine(saved_line, scale_factor, old_margin, new_margin);
       if (line_data.strokes === null) {
       } else {
         this.linesToStrokes.set(saved_line, line_data.strokes);

@@ -2,7 +2,8 @@
 set -ex
 rm -rf dist
 npm run build
-sed 's/src\/main.ts/note-down.js/' index.html > dist/index.html
+sed -e 's/src\/main.ts/dist\/note-down.js/' -e 's/src\/style.css/dist\/style.css' index.html > dist/index.html
+cp src/style.css dist/
 cd dist
 git init
 git remote add origin 'https://github.com/aneeshdurg/NoteDown.git'

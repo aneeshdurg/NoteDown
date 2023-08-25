@@ -66,19 +66,34 @@ export class NoteDownRenderer {
     const state = {
       lineToRealLine: this.lineToRealLine,
       hidden_roots: this.hidden_roots,
+      line_spacing: this.line_spacing,
+      left_margin: this.left_margin,
     };
 
     await this.storage.saveUIState(state);
   }
 
   async load(upgradeUI: boolean) {
+    let scale_factor = 1;
+    let new_margin = this.left_margin;
+    let old_margin = this.left_margin;
+    const state = await this.storage.getUIState();
     if (!upgradeUI) {
-      const state = await this.storage.getUIState();
       this.lineToRealLine = state.lineToRealLine;
       this.hidden_roots = state.hidden_roots;
     }
+    if (state.line_spacing !== undefined) {
+      scale_factor = this.line_spacing / state.line_spacing;
+      this.line_spacing = state.line_spacing;
+    } else {
+      scale_factor = 0.5;
+    }
+    if (state.left_margin !== undefined) {
+      old_margin = state.left_margin;
+    }
+    console.log(old_margin, new_margin, scale_factor);
 
-    await this.doc.load(this.storage);
+    await this.doc.load(this.storage, scale_factor, old_margin, new_margin);
   }
 
   wheelHandler(e: WheelEvent) {
@@ -102,6 +117,9 @@ export class NoteDownRenderer {
 
     const mainbody = new Region({ x: this.left_margin, y: 0 }, this.ctx.canvas.width - this.left_margin, this.ctx.canvas.height, 5, 0);
     const mainbody_cbs = {
+      penDrag: this.onPenMove.bind(this),
+      penDragEnd: this.onPenUp.bind(this),
+      penDragCancel: this.onPenUp.bind(this),
       drag: async (evt: DragEvent) => {
         if (scrollPos === null) {
           // save the position without transforming
@@ -147,9 +165,6 @@ export class NoteDownRenderer {
         mode = "indent";
         lineToIndent = Math.floor(this.transformCoords(pt).y / this.line_spacing) as RenderedLineNumber;
       },
-      penDrag: this.onPenMove.bind(this),
-      penDragEnd: this.onPenUp.bind(this),
-      penDragCancel: this.onPenUp.bind(this),
     };
     mainbody.registerRegion(this.ctx.canvas, mainbody_cbs);
 

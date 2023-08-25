@@ -20,8 +20,6 @@ export class DragEvent {
 type PointerType = "touch" | "pen";
 
 export interface RegionEvents {
-  wheel?: ((e: WheelEvent) => CallbackRetType) | undefined;
-
   // touch gestures
   drag?: ((e: DragEvent) => CallbackRetType) | undefined;
   dragCancel?: (() => CallbackRetType) | undefined;
