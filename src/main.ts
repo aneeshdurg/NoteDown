@@ -1,5 +1,5 @@
 import { NoteDownDocument } from './document.ts';
-import { NoteDownUI } from './ui.ts';
+import { NoteDownRenderer } from './renderer.ts';
 import { LocalStorageManager } from './local_storage_manager.ts';
 
 import localForage from "localforage";
@@ -28,7 +28,7 @@ export async function main() {
 
   const storage = new LocalStorageManager();
   const doc = new NoteDownDocument();
-  const ui = new NoteDownUI(notebook, upgradeUI, ctx, doc, storage);
+  const ui = new NoteDownRenderer(notebook, upgradeUI, ctx, doc, storage);
 
   const eraser = <HTMLElement>document.getElementById("eraser");
   eraser.onclick = () => {
