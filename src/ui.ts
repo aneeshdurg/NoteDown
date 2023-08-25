@@ -50,6 +50,12 @@ interface InteractiveEvent extends CoordinateEvent {
 };
 
 
+interface PointerEventLike extends InteractiveEvent {
+  pointerId: number;
+  pointerType: string;
+};
+
+
 let pointerDetailCounter = 0;
 class PointerDetails {
   createdAt: number;
@@ -86,10 +92,10 @@ export class Region {
     this.location = location;
     this.width = width;
     this.height = height;
-    if (touchMoveThreshold) {
+    if (touchMoveThreshold !== undefined) {
       this.touchMoveThreshold = touchMoveThreshold;
     }
-    if (penMoveThreshold) {
+    if (penMoveThreshold !== undefined) {
       this.penMoveThreshold = penMoveThreshold;
     }
   }
@@ -145,7 +151,7 @@ export class Region {
 
   touchRegionWrapper(cb: Callback) {
     const wrapped_cb = this.regionWrapper(cb);
-    return async (e: PointerEvent) => {
+    return async (e: PointerEventLike) => {
       if (e.pointerType != "touch") {
         return
       };
@@ -166,7 +172,7 @@ export class Region {
   registerRegion(canvas: HTMLCanvasElement, cbs: RegionEvents) {
     const trackedPointer = new Map();
 
-    const pointerCancel = (type: PointerType, e: PointerEvent) => {
+    const pointerCancel = (type: PointerType, e: PointerEventLike) => {
       const details = trackedPointer.get(e.pointerId)
       if (details !== undefined && details.moved) {
         if (type == "touch") {
@@ -182,10 +188,10 @@ export class Region {
       trackedPointer.delete(e.pointerId);
     };
 
-    type WrappedFnType = (type: PointerType, e: PointerEvent) => void;
+    type WrappedFnType = (type: PointerType, e: PointerEventLike) => void;
 
     const pointerEventWrapper = (type: PointerType, f: WrappedFnType) => {
-      return (e: PointerEvent) => {
+      return (e: PointerEventLike) => {
         if (e.pointerType != type) {
           return;
         }
@@ -201,7 +207,7 @@ export class Region {
     const touchEventWrapper = (f: WrappedFnType) => pointerEventWrapper("touch", f);
     const penEventWrapper = (f: WrappedFnType) => pointerEventWrapper("pen", f);
 
-    const touchDown = (type: PointerType, e: PointerEvent) => {
+    const touchDown = (type: PointerType, e: PointerEventLike) => {
       const coords = Region.getCanvasCoords(e);
       trackedPointer.set(e.pointerId, new PointerDetails(coords));
 
@@ -224,7 +230,7 @@ export class Region {
       }
     };
 
-    const touchUp = (type: PointerType, e: PointerEvent) => {
+    const touchUp = (type: PointerType, e: PointerEventLike) => {
       const details = trackedPointer.get(e.pointerId)
       if (details === undefined) {
         return;
@@ -255,7 +261,7 @@ export class Region {
       pointerCancel(type, e);
     };
 
-    const touchMove = (type: PointerType, e: PointerEvent) => {
+    const touchMove = (type: PointerType, e: PointerEventLike) => {
       const details = trackedPointer.get(e.pointerId)
       if (details === undefined) {
         return;
@@ -291,5 +297,28 @@ export class Region {
     canvas.addEventListener("pointerup", penEventWrapper(touchUp));
     canvas.addEventListener("pointercancel", penEventWrapper(pointerCancel));
     canvas.addEventListener("pointermove", penEventWrapper(touchMove));
+
+    // Disable all touch events - we only want pointer events
+    canvas.addEventListener("touchstart", (e) => { e.preventDefault(); });
+    canvas.addEventListener("touchend", (e) => { e.preventDefault(); });
+    canvas.addEventListener("touchmove", (e) => { e.preventDefault(); });
+
+    // mouse compatibility layer
+    const mouseEventWrapper = (f: WrappedFnType) => {
+      return (e: MouseEvent) => {
+        const coords = Region.getCanvasCoords(e);
+        const type = e.shiftKey ? "touch" : "pen";
+        const ptr_e = e as unknown as PointerEventLike;
+        ptr_e.pointerId = -1;
+        ptr_e.pointerType = type;
+        if (!this.inRegion(coords)) {
+          pointerCancel(type, ptr_e);
+        }
+        f(type, ptr_e);
+      };
+    };
+    canvas.addEventListener("mousedown", mouseEventWrapper(touchDown));
+    canvas.addEventListener("mouseup", mouseEventWrapper(touchUp));
+    canvas.addEventListener("mousemove", mouseEventWrapper(touchMove));
   }
 }
