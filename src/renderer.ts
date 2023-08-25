@@ -105,17 +105,9 @@ export class NoteDownRenderer {
   }
 
   installEventHandlers() {
-    const mouseDownHandler = this.mouseDownHandler.bind(this);
-    this.ctx.canvas.addEventListener("mousedown", mouseDownHandler);
-    this.ctx.canvas.addEventListener("touchstart", touchWrapper(mouseDownHandler));
-
-    const mouseUpHandler = this.mouseUpHandler.bind(this);
-    this.ctx.canvas.addEventListener("mouseup", mouseUpHandler);
-    this.ctx.canvas.addEventListener("touchend", touchWrapper(mouseUpHandler));
-
-    const mouseMoveHandler = this.mouseMoveHandler.bind(this);
-    this.ctx.canvas.addEventListener("mousemove", mouseMoveHandler);
-    this.ctx.canvas.addEventListener("touchmove", touchWrapper(mouseMoveHandler));
+    this.ctx.canvas.addEventListener("touchstart", (e) => { e.preventDefault(); });
+    this.ctx.canvas.addEventListener("touchend", (e) => { e.preventDefault(); });
+    this.ctx.canvas.addEventListener("touchmove", (e) => { e.preventDefault(); });
 
     // Callback for scrolling
     this.ctx.canvas.addEventListener("wheel", this.wheelHandler.bind(this));
@@ -169,9 +161,13 @@ export class NoteDownRenderer {
       longPress: (pt: Point) => {
         navigator.vibrate([100]);
         mode = "indent";
-        const curr_line = Math.floor(this.transformCoords(pt).y / this.line_spacing) as RenderedLineNumber;
-        lineToIndent = curr_line;
+        lineToIndent = Math.floor(this.transformCoords(pt).y / this.line_spacing) as RenderedLineNumber;
       },
+      penDrag: (evt: DragEvent) => {
+        this.onPenMove(evt.end);
+      },
+      penDragEnd: this.onPenUp.bind(this),
+      penDragCancel: this.onPenUp.bind(this),
     };
     mainbody.registerRegion(this.ctx.canvas, mainbody_cbs);
 
@@ -462,7 +458,7 @@ export class NoteDownRenderer {
 
   is_eraser = false;
 
-  async mouseUpHandler(e: InteractiveEvent) {
+  async onPenUp() {
     if (!this.clicked || !this.currentStroke) {
       return;
     }
@@ -492,8 +488,14 @@ export class NoteDownRenderer {
     this.currentStroke = null;
   };
 
-  async mouseMoveHandler(e: InteractiveEvent) {
-    const coords = this.getCanvasCoords(e);
+  async onPenMove(pt: Point) {
+    const coords = this.transformCoords(pt);
+    if (!this.clicked) {
+      this.currentStroke = new Stroke(coords.y - (coords.y % this.line_spacing))
+      this.currentStroke.add(coords.x, coords.y);
+      this.clicked = true;
+      this.curr_location = coords;
+    }
     if (!this.clicked || !this.curr_location) {
       return;
     }
