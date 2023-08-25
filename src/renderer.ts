@@ -10,18 +10,6 @@ interface InteractiveEvent {
   clientY: number;
 };
 
-const touchWrapper = (f: (e: InteractiveEvent) => void): (e: TouchEvent) => void => {
-  return (e: TouchEvent) => {
-    e.preventDefault();
-    for (let i = 0; i < e.changedTouches.length; i++) {
-      if (e.changedTouches[i].radiusX == 0 && e.changedTouches[i].radiusY == 0) {
-        f(e.changedTouches[i]);
-        break;
-      }
-    }
-  }
-};
-
 export class NoteDownRenderer {
   name: string;
   doc: NoteDownDocument;
@@ -32,7 +20,7 @@ export class NoteDownRenderer {
   currentStroke: Stroke | null = null;
   curr_location: Point | null = null;
 
-  line_spacing = 100;
+  line_spacing = 50;
   left_margin = 50;
   y_offset = 0;
 
@@ -105,10 +93,6 @@ export class NoteDownRenderer {
   }
 
   installEventHandlers() {
-    this.ctx.canvas.addEventListener("touchstart", (e) => { e.preventDefault(); });
-    this.ctx.canvas.addEventListener("touchend", (e) => { e.preventDefault(); });
-    this.ctx.canvas.addEventListener("touchmove", (e) => { e.preventDefault(); });
-
     // Callback for scrolling
     this.ctx.canvas.addEventListener("wheel", this.wheelHandler.bind(this));
 
@@ -163,83 +147,83 @@ export class NoteDownRenderer {
         mode = "indent";
         lineToIndent = Math.floor(this.transformCoords(pt).y / this.line_spacing) as RenderedLineNumber;
       },
-      penDrag: (evt: DragEvent) => {
-        this.onPenMove(evt.end);
-      },
+      penDrag: this.onPenMove.bind(this),
       penDragEnd: this.onPenUp.bind(this),
       penDragCancel: this.onPenUp.bind(this),
     };
     mainbody.registerRegion(this.ctx.canvas, mainbody_cbs);
 
     // Margin events
-    let lineToMove: RenderedLineNumber | null = null;
-    let movedToOtherLine = false;
-    let moveOperationID = 0;
-
-    const moveCancel = () => {
-      lineToMove = null;
-      movedToOtherLine = false;
-      moveOperationID += 1;
-    };
-
-    const setMoveTarget = (coords: Point) => {
-      let curr_line = Math.floor(coords.y / this.line_spacing) as RenderedLineNumber;
-      if (curr_line != lineToMove) {
-        movedToOtherLine = true;
-      }
-    };
-
     const margin = new Region({ x: 0, y: 0 }, this.left_margin, this.ctx.canvas.height, 5, 10);
     const margin_cbs = {
-      drag: (evt: DragEvent) => {
-        const start = this.transformCoords(evt.start);
-        const end = this.transformCoords(evt.end);
-        const start_line = Math.floor(start.y / this.line_spacing) as RenderedLineNumber;
-        if (lineToMove === null) {
-          lineToMove = start_line;
-        }
-        setMoveTarget(end);
-
-        this.clearAndRedraw();
-        this.ctx.beginPath();
-        this.ctx.strokeStyle = "black";
-        this.ctx.lineWidth = 5;
-        this.ctx.moveTo(this.left_margin + 30, end.y);
-        this.ctx.lineTo(this.left_margin + 75, end.y);
-        this.ctx.lineTo(this.left_margin + 60, end.y + 10);
-        this.ctx.moveTo(this.left_margin + 75, end.y);
-        this.ctx.lineTo(this.left_margin + 60, end.y - 10);
-        this.ctx.stroke();
-      },
-      dragEnd: async (pt: Point) => {
-        if (lineToMove !== null) {
-          const coords = this.transformCoords(pt);
-          let curr_line = Math.floor(coords.y / this.line_spacing) as RenderedLineNumber;
-          if (movedToOtherLine && curr_line !== lineToMove) {
-            if (curr_line > lineToMove) {
-              // the target is below the initial point, drop the line one line
-              // below
-              curr_line++;
-            }
-            await this.move(lineToMove, curr_line);
-          } else {
-            this.clearAndRedraw();
-          }
-          moveCancel();
-        }
-      },
-      dragCancel: moveCancel,
+      drag: this.selectMoveTarget.bind(this),
+      dragEnd: this.confirmMoveTarget.bind(this),
+      dragCancel: this.moveCancel.bind(this),
       tap: (pt: Point) => console.log("TAP", pt),
       longPress: (_: Point) => {
         navigator.vibrate([100]);
         return true;
       },
-      penTap: (pt: Point) => {
-        const coords = this.transformCoords(pt);
-        this.clickHandler(coords);
-      },
+      penTap: this.clickHandler.bind(this),
     };
     margin.registerRegion(this.ctx.canvas, margin_cbs as any);
+  }
+
+  // Move line state
+  lineToMove: RenderedLineNumber | null = null;
+  movedToOtherLine = false;
+  moveOperationID = 0;
+
+  moveCancel() {
+    this.lineToMove = null;
+    this.movedToOtherLine = false;
+    this.moveOperationID += 1;
+  };
+
+  setMoveTarget(coords: Point) {
+    let curr_line = Math.floor(coords.y / this.line_spacing) as RenderedLineNumber;
+    if (curr_line != this.lineToMove) {
+      this.movedToOtherLine = true;
+    }
+  };
+
+  selectMoveTarget(evt: DragEvent) {
+    const start = this.transformCoords(evt.start);
+    const end = this.transformCoords(evt.end);
+    const start_line = Math.floor(start.y / this.line_spacing) as RenderedLineNumber;
+    if (this.lineToMove === null) {
+      this.lineToMove = start_line;
+    }
+    this.setMoveTarget(end);
+
+    this.clearAndRedraw();
+    this.ctx.beginPath();
+    this.ctx.strokeStyle = "black";
+    this.ctx.lineWidth = 5;
+    this.ctx.moveTo(this.left_margin + 30, end.y);
+    this.ctx.lineTo(this.left_margin + 75, end.y);
+    this.ctx.lineTo(this.left_margin + 60, end.y + 10);
+    this.ctx.moveTo(this.left_margin + 75, end.y);
+    this.ctx.lineTo(this.left_margin + 60, end.y - 10);
+    this.ctx.stroke();
+  }
+
+  async confirmMoveTarget(pt: Point) {
+    if (this.lineToMove !== null) {
+      const coords = this.transformCoords(pt);
+      let curr_line = Math.floor(coords.y / this.line_spacing) as RenderedLineNumber;
+      if (this.movedToOtherLine && curr_line !== this.lineToMove) {
+        if (curr_line > this.lineToMove) {
+          // the target is below the initial point, drop the line one line
+          // below
+          curr_line++;
+        }
+        await this.move(this.lineToMove, curr_line);
+      } else {
+        this.clearAndRedraw();
+      }
+      this.moveCancel();
+    }
   }
 
   async move(src: RenderedLineNumber, dst: RenderedLineNumber) {
@@ -455,7 +439,8 @@ export class NoteDownRenderer {
     return false;
   }
 
-  async clickHandler(coords: Point) {
+  async clickHandler(pt: Point) {
+    const coords = this.transformCoords(pt);
     if (coords.x > this.left_margin) {
       return;
     }
@@ -499,8 +484,8 @@ export class NoteDownRenderer {
     this.currentStroke = null;
   };
 
-  async onPenMove(pt: Point) {
-    const coords = this.transformCoords(pt);
+  async onPenMove(evt: DragEvent) {
+    const coords = this.transformCoords(evt.end);
     if (!this.clicked) {
       this.currentStroke = new Stroke(coords.y - (coords.y % this.line_spacing))
       this.currentStroke.add(coords.x, coords.y);
