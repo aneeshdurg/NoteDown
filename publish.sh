@@ -2,7 +2,7 @@
 set -ex
 rm -rf dist
 npm run build
-sed -e 's/src\/main.ts/dist\/note-down.js/' -e 's/src\/style.css/dist\/style.css' index.html > dist/index.html
+sed -f fix.sed index.html > dist/index.html
 cp src/style.css dist/
 cd dist
 git init
