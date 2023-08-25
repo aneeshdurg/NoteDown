@@ -1,0 +1,57 @@
+body {
+    font-family: sans-serif;
+    /*background: #000000ff;*/
+}
+
+.display-container {
+    width: 100%;
+    /*text-align: center;*/
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+div {
+    border-radius: 25px;
+}
+
+canvas {
+    height: 100%;
+    border: solid 1px;
+    border-radius: 25px;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+
+.box {
+  display: flex;
+  flex-flow: column;
+  height: 100%;
+}
+
+.box .row {
+  /* border: 1px dotted grey;*/
+}
+
+.box .row.header {
+  flex: 0 1 auto;
+  padding: 0.25em;
+  /* The above is shorthand for:
+  flex-grow: 0,
+  flex-shrink: 1,
+  flex-basis: auto
+  */
+}
+
+.box .row.content {
+  flex: 1 1 auto;
+  padding: 0.25em;
+}
+
+.box .row.footer {
+  flex: 0 1 40px;
+}
