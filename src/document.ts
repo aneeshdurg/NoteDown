@@ -68,7 +68,6 @@ export class NoteDownDocument {
         blankLineCount += 1;
         if (blankLineCount == 1) {
           section.push(lineNo as RealLineNumber);
-          break;
         }
         continue;
       }
