@@ -24,7 +24,7 @@ describe("Moving lines", () => {
     expect(renderer.hidden_roots).toEqual(new Set([1]));
     await renderer.move(1 as RenderedLineNumber, 0 as RenderedLineNumber);
     expect(renderer.hidden_roots).toEqual(new Set([0]));
-    await renderer.move(0 as RenderedLineNumber, 1 as RenderedLineNumber);
+    await renderer.move(0 as RenderedLineNumber, 2 as RenderedLineNumber);
     expect(renderer.hidden_roots).toEqual(new Set([1]));
   });
 });

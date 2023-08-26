@@ -25,7 +25,7 @@ export class NoteDownDocument {
   }
 
   async indent(line: RealLineNumber, direction: 1 | -1, indent_children: boolean, storage: NoteDownStorageManager) {
-    if (!this.linesToStrokes.has(line)) {
+    if (this.linesToStrokes.get(line) === undefined) {
       return;
     }
 
@@ -83,13 +83,13 @@ export class NoteDownDocument {
   }
 
   async add_stroke(curr_line: RealLineNumber, stroke: Stroke, storage: NoteDownStorageManager) {
-    if (!this.linesToStrokes.has(curr_line)) {
+    if (this.linesToStrokes.get(curr_line) === undefined) {
       this.linesToStrokes.set(curr_line, []);
     }
     this.linesToStrokes.get(curr_line)?.push(stroke);
 
     let leftMostPoint = stroke.leftMostPoint();
-    if (!this.linesTofirstContent.has(curr_line)) {
+    if (this.linesTofirstContent.get(curr_line) === undefined) {
       this.linesTofirstContent.set(curr_line, leftMostPoint)
     }
     this.linesTofirstContent.set(curr_line,
@@ -135,7 +135,7 @@ export class NoteDownDocument {
     // Remove the lines from the src document
     for (let i = src; i < this.last_line; i++) {
       const line = i + remap_amt as RealLineNumber
-      if (this.linesToStrokes.has(line) !== undefined) {
+      if (this.linesToStrokes.get(line) !== undefined) {
         this.linesToStrokes.set(i, this.linesToStrokes.get(line)!);
         this.linesTofirstContent.set(i, this.linesTofirstContent.get(line)!);
       } else {
@@ -152,7 +152,7 @@ export class NoteDownDocument {
     // Create a gap where the new lines will go
     for (let i = this.last_line as RealLineNumber; i >= dst; i--) {
       const line = i + remap_amt as RealLineNumber;
-      if (this.linesToStrokes.has(i) !== undefined) {
+      if (this.linesToStrokes.get(i) !== undefined) {
         this.linesToStrokes.set(line, this.linesToStrokes.get(i)!);
         this.linesTofirstContent.set(line, this.linesTofirstContent.get(i)!);
       } else {

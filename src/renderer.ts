@@ -267,7 +267,7 @@ export class NoteDownRenderer {
         x = x - num_shift as RealLineNumber;
       }
       // Next account for the shift after reinserting the lines
-      if (x >= (real_line_dst - num_shift)) {
+      if (x > (real_line_dst - num_shift)) {
         x = x + num_shift as RealLineNumber;
       }
       return x;
@@ -280,9 +280,16 @@ export class NoteDownRenderer {
     this.hidden_roots = final_hidden_roots;
 
     if (move_children) {
-      this.hidden_roots.add(real_line_dst);
-      for (let root of hidden_children) {
-        this.hidden_roots.add(real_line_dst - real_line_src + root as RealLineNumber);
+      if (real_line_dst < real_line_src) {
+        this.hidden_roots.add(real_line_dst);
+        for (let root of hidden_children) {
+          this.hidden_roots.add(real_line_dst - real_line_src + root as RealLineNumber);
+        }
+      } else {
+        this.hidden_roots.add(real_line_dst - num_shift as RealLineNumber);
+        for (let root of hidden_children) {
+          this.hidden_roots.add(real_line_dst - num_shift - real_line_src + root as RealLineNumber);
+        }
       }
     }
 
