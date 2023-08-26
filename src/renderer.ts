@@ -31,6 +31,9 @@ export class NoteDownRenderer {
 
   scroll_delta: number = 0.01;
 
+  is_eraser = false;
+  on_eraser_flip: (() => void) | null = null;
+
   constructor(
     name: string,
     upgradeUI: boolean,
@@ -169,6 +172,7 @@ export class NoteDownRenderer {
         mode = "indent";
         lineToIndent = Math.floor(this.transformCoords(pt).y / this.line_spacing) as RenderedLineNumber;
       },
+      tap: this.onTap.bind(this),
     };
     mainbody.registerRegion(this.ctx.canvas as HTMLCanvasElement, mainbody_cbs);
 
@@ -186,6 +190,19 @@ export class NoteDownRenderer {
       penTap: this.clickHandler.bind(this),
     };
     margin.registerRegion(this.ctx.canvas as HTMLCanvasElement, margin_cbs as any);
+  }
+
+  last_tap_time = 0;
+  double_tap_time = 250;
+  onTap(_pt: Point) {
+    const curr_time = (new Date()).getTime();
+    if ((curr_time - this.last_tap_time) < this.double_tap_time) {
+      this.is_eraser = !this.is_eraser;
+      if (this.on_eraser_flip) {
+        this.on_eraser_flip();
+      }
+    }
+    this.last_tap_time = curr_time;
   }
 
   // Move line state
@@ -475,8 +492,6 @@ export class NoteDownRenderer {
     }
     await this.save();
   }
-
-  is_eraser = false;
 
   async onPenUp() {
     if (!this.clicked || !this.currentStroke) {

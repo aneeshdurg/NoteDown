@@ -20,7 +20,7 @@ export async function main() {
   const upgradeUI = (urlParams.get("upgradeui") || false) as boolean;
   if (forceCreate) {
     try {
-      localForage.dropInstance({name: notebook});
+      localForage.dropInstance({ name: notebook });
     } catch (e) {
       console.log(e);
     }
@@ -31,13 +31,15 @@ export async function main() {
   const ui = new NoteDownRenderer(notebook, upgradeUI, ctx, doc, storage);
 
   const eraser = <HTMLElement>document.getElementById("eraser");
-  eraser.onclick = () => {
-    ui.is_eraser = !ui.is_eraser;
+  ui.on_eraser_flip = () => {
     if (ui.is_eraser) {
       eraser.innerText = "Pen";
     } else {
       eraser.innerText = "Eraser";
     }
+  }
+  eraser.onclick = () => {
+    ui.is_eraser = !ui.is_eraser;
   };
   (window as any).notedown_ui = ui;
   (window as any).localForage = localForage;
