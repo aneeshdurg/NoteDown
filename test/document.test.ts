@@ -1,4 +1,4 @@
-import { MockStorageManager } from './mock_storage.ts';
+import { MockStorageManager } from './utils/mock_storage.ts';
 import { NoteDownDocument } from '../src/document.ts';
 import { Stroke } from '../src/stroke.ts';
 import { RealLineNumber } from '../src/types.ts';

@@ -1,6 +1,6 @@
-import { RealLineNumber } from '../src/types.ts';
-import { NoteDownStorageManager } from '../src/storage_manager.ts';
-import { Stroke } from '../src/stroke.ts';
+import { RealLineNumber } from '../../src/types.ts';
+import { NoteDownStorageManager } from '../../src/storage_manager.ts';
+import { Stroke } from '../../src/stroke.ts';
 
 export class MockStorageManager implements NoteDownStorageManager {
   storage: Map<string, Map<string, any>>;

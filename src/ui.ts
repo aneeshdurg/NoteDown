@@ -196,6 +196,7 @@ export class Region {
         const coords = Region.getCanvasCoords(e);
         if (!this.inRegion(coords)) {
           pointerCancel(type, e);
+          return;
         }
         e.preventDefault();
         f(type, e);
@@ -311,6 +312,7 @@ export class Region {
         ptr_e.pointerType = type;
         if (!this.inRegion(coords)) {
           pointerCancel(type, ptr_e);
+          return;
         }
         f(type, ptr_e);
       };

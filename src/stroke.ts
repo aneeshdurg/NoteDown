@@ -1,3 +1,5 @@
+import { CanvasContext } from './types.ts';
+
 export interface Point {
   x: number;
   y: number;
@@ -18,7 +20,7 @@ export class Stroke {
     this.y_points.push(y - this.y_root);
   }
 
-  draw(ctx: CanvasRenderingContext2D, y_root: number) {
+  draw(ctx: CanvasContext, y_root: number) {
     ctx.strokeStyle = "black";
     ctx.lineWidth = 2;
 

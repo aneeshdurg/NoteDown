@@ -1,5 +1,5 @@
 import { Point, Stroke } from './stroke.ts';
-import { RealLineNumber, RenderedLineNumber } from './types.ts';
+import { CanvasContext, RealLineNumber, RenderedLineNumber } from './types.ts';
 import { NoteDownDocument } from './document.ts';
 import { NoteDownStorageManager } from './storage_manager.ts';
 
@@ -15,7 +15,7 @@ export class NoteDownRenderer {
   doc: NoteDownDocument;
   storage: NoteDownStorageManager;
 
-  ctx: CanvasRenderingContext2D
+  ctx: CanvasContext
   clicked = false;
   currentStroke: Stroke | null = null;
   curr_location: Point | null = null;
@@ -32,7 +32,7 @@ export class NoteDownRenderer {
   constructor(
     name: string,
     upgradeUI: boolean,
-    ctx: CanvasRenderingContext2D,
+    ctx: CanvasContext,
     doc: NoteDownDocument,
     storage: NoteDownStorageManager
   ) {
@@ -46,7 +46,6 @@ export class NoteDownRenderer {
     for (let i = 0; i < this.rendered_lines; i++) {
       this.lineToRealLine.set(i as RenderedLineNumber, i as RealLineNumber);
     }
-
 
     this.draw_layout();
 
@@ -79,8 +78,12 @@ export class NoteDownRenderer {
     let old_margin = this.left_margin;
     const state = await this.storage.getUIState();
     if (!upgradeUI) {
-      this.lineToRealLine = state.lineToRealLine;
-      this.hidden_roots = state.hidden_roots;
+      if (state.lineToRealLine) {
+        this.lineToRealLine = state.lineToRealLine;
+      }
+      if (state.hidden_roots) {
+        this.hidden_roots = state.hidden_roots;
+      }
     }
     if (state.line_spacing !== undefined) {
       scale_factor = this.line_spacing / state.line_spacing;
@@ -91,7 +94,6 @@ export class NoteDownRenderer {
     if (state.left_margin !== undefined) {
       old_margin = state.left_margin;
     }
-    console.log(old_margin, new_margin, scale_factor);
 
     await this.doc.load(this.storage, scale_factor, old_margin, new_margin);
   }
@@ -166,7 +168,7 @@ export class NoteDownRenderer {
         lineToIndent = Math.floor(this.transformCoords(pt).y / this.line_spacing) as RenderedLineNumber;
       },
     };
-    mainbody.registerRegion(this.ctx.canvas, mainbody_cbs);
+    mainbody.registerRegion(this.ctx.canvas as HTMLCanvasElement, mainbody_cbs);
 
     // Margin events
     const margin = new Region({ x: 0, y: 0 }, this.left_margin, this.ctx.canvas.height, 5, 10);
@@ -181,7 +183,7 @@ export class NoteDownRenderer {
       },
       penTap: this.clickHandler.bind(this),
     };
-    margin.registerRegion(this.ctx.canvas, margin_cbs as any);
+    margin.registerRegion(this.ctx.canvas as HTMLCanvasElement, margin_cbs as any);
   }
 
   // Move line state
@@ -244,7 +246,6 @@ export class NoteDownRenderer {
   async move(src: RenderedLineNumber, dst: RenderedLineNumber) {
     const real_line_src = this.lineToRealLine.get(src)!;
     const real_line_dst = this.lineToRealLine.get(dst)!;
-    console.log("Move", real_line_src, " -> ", real_line_dst);
     const move_children = this.hidden_roots.has(real_line_src);
     let num_shift = 1;
     const hidden_children: Set<RealLineNumber> = new Set();
@@ -287,7 +288,6 @@ export class NoteDownRenderer {
 
     let curr_line = this.lineToRealLine.get(0 as RenderedLineNumber)!;
     for (let i = 0 as RenderedLineNumber; i < this.rendered_lines; i++) {
-      console.log(i, " -> ", curr_line);
       this.lineToRealLine.set(i, curr_line);
       if (this.hidden_roots.has(curr_line)) {
         curr_line = curr_line + this.doc.childLines(curr_line).length as RealLineNumber;
