@@ -5,7 +5,7 @@ import { documentCreator } from './utils/documentCreator.ts';
 import { RenderedLineNumber } from '../src/types.ts';
 
 describe("Moving lines", () => {
-  it("idk", async () => {
+  it("should move roots and track which lines are hidden", async () => {
     const storage = new MockStorageManager();
     storage.setActiveNotebook("test");
 
@@ -19,8 +19,8 @@ describe("Moving lines", () => {
 
     const ctx = new MockCanvasContext();
     const renderer = new NoteDownRenderer("test", false, ctx, doc, storage);
+    await renderer.toggleLineHidden(1 as RenderedLineNumber);
 
-    await renderer.clickHandler({ x: renderer.left_margin / 2, y: 1.5 * renderer.line_spacing });
     expect(renderer.hidden_roots).toEqual(new Set([1]));
     await renderer.move(1 as RenderedLineNumber, 0 as RenderedLineNumber);
     expect(renderer.hidden_roots).toEqual(new Set([0]));

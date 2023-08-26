@@ -29,6 +29,8 @@ export class NoteDownRenderer {
 
   hidden_roots: Set<RealLineNumber> = new Set();
 
+  scroll_delta: number = 0.01;
+
   constructor(
     name: string,
     upgradeUI: boolean,
@@ -567,8 +569,8 @@ export class NoteDownRenderer {
 
   async scrollDown() {
     if (this.y_offset < 1) {
-      this.y_offset += 0.01;
-      if ((1 - this.y_offset) >= 0.01) {
+      this.y_offset += this.scroll_delta;
+      if ((1 - this.y_offset) >= this.scroll_delta) {
         return;
       }
     }
@@ -586,8 +588,8 @@ export class NoteDownRenderer {
 
   async scrollUp() {
     if (this.y_offset > 0) {
-      this.y_offset -= 0.01;
-      if (this.y_offset >= 0.01) {
+      this.y_offset -= this.scroll_delta;
+      if (this.y_offset >= this.scroll_delta) {
         return;
       }
     }
@@ -604,10 +606,15 @@ export class NoteDownRenderer {
 
     let first_value = this.lineToRealLine.get(0 as RenderedLineNumber)!;
     first_value = first_value - 1 as RealLineNumber;
-    for (let root of this.hidden_roots) {
-      if (this.doc.childLines(root).includes(first_value)) {
-        first_value = root;
-        break;
+    let needs_transform = true;
+    while (needs_transform) {
+      needs_transform = false;
+      for (let root of this.hidden_roots) {
+        if (this.doc.childLines(root).includes(first_value)) {
+          first_value = root;
+          needs_transform = true;
+          break;
+        }
       }
     }
     this.lineToRealLine.set(0 as RenderedLineNumber, first_value);
