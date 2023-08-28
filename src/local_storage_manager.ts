@@ -8,11 +8,16 @@ export class LocalStorageManager implements NoteDownStorageManager {
   active_notebook: string | null = null;
   store: typeof localForage = localForage;
   saved_lines: Set<RealLineNumber> = new Set();
+  known_notebooks: Set<string> = new Set();
 
   constructor() { }
 
   async listNotebooks(): Promise<string[]> {
-    return (await localForage.getItem("notebooks"))!;
+    const notebooks: string[] = (await localForage.getItem("notebooks")) || [];
+    for (let notebook of notebooks) {
+      this.known_notebooks.add(notebook);
+    }
+    return notebooks;
   }
 
   async setActiveNotebook(notebook: string) {
@@ -20,6 +25,13 @@ export class LocalStorageManager implements NoteDownStorageManager {
     this.store = localForage.createInstance({ name: notebook });
     this.saved_lines = (await this.store.getItem("saved_lines") as Set<RealLineNumber>) || new Set();
     await this.store.setItem("saved_lines", this.saved_lines);
+    this.known_notebooks.add(notebook);
+
+    const notebooks: string[] = [];
+    for (let notebook of this.known_notebooks) {
+      notebooks.push(notebook);
+    }
+    await localForage.setItem("notebooks", notebooks);
   }
 
   async notebookIsInitialized(): Promise<boolean> {

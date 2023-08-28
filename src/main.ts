@@ -29,6 +29,35 @@ export async function main() {
   const storage = new LocalStorageManager();
   const doc = new NoteDownDocument();
   const ui = new NoteDownRenderer(notebook, upgradeUI, ctx, doc, storage);
+  (window as any).notedown_ui = ui;
+  (window as any).localForage = localForage;
+
+  const new_notebook = <HTMLElement>document.getElementById("create-new-notebook");
+  new_notebook.onclick = () => {
+    while (true) {
+      const value = prompt("New notebook name");
+      if (value === "") {
+        alert("Please enter a notebook name");
+        continue
+      } else if (value) {
+        location.assign(`?notebook=${encodeURIComponent(value)}`);
+      }
+      break;
+    }
+  };
+
+  const change_notebook = <HTMLSelectElement>document.getElementById("change-notebook");
+  const notebooks = await storage.listNotebooks();
+  for (let notebook of notebooks) {
+    const entry = document.createElement("option");
+    entry.value = notebook;
+    entry.innerHTML = decodeURIComponent(notebook);
+    change_notebook.appendChild(entry);
+  }
+  change_notebook.value = notebook;
+  change_notebook.onchange = () => {
+    location.assign(`?notebook=${encodeURIComponent(change_notebook.value)}`);
+  };
 
   const eraser = <HTMLElement>document.getElementById("eraser");
   ui.on_eraser_flip = () => {
@@ -41,6 +70,4 @@ export async function main() {
   eraser.onclick = () => {
     ui.is_eraser = !ui.is_eraser;
   };
-  (window as any).notedown_ui = ui;
-  (window as any).localForage = localForage;
 }
