@@ -5,6 +5,13 @@ import { LocalStorageManager } from './local_storage_manager.ts';
 import localForage from "localforage";
 
 export async function main() {
+  if ("serviceWorker" in navigator) {
+    console.log("registering serviceworker");
+    const registration = await navigator.serviceWorker.register("/NoteDown/service_worker.js");
+    console.log(registration);
+  }
+    console.log("!");
+
   const canvas = <HTMLCanvasElement>document.getElementById("mycanvas");
   canvas.width = 1000;
   canvas.height = 1000;
@@ -15,7 +22,7 @@ export async function main() {
 
   const queryString = window.location.search;
   const urlParams = new URLSearchParams(queryString);
-  const notebook = urlParams.get("notebook") || "default";
+  const notebook = decodeURIComponent(urlParams.get("notebook") || "default");
   const forceCreate = urlParams.get("forcecreate") || false;
   const upgradeUI = (urlParams.get("upgradeui") || false) as boolean;
   if (forceCreate) {
@@ -48,13 +55,17 @@ export async function main() {
 
   const change_notebook = <HTMLSelectElement>document.getElementById("change-notebook");
   const notebooks = await storage.listNotebooks();
+  const entry = document.createElement("option");
+  entry.value = encodeURIComponent(notebook);
+  entry.innerHTML = notebook;
+  change_notebook.appendChild(entry);
+  change_notebook.value = notebook;
   for (let notebook of notebooks) {
     const entry = document.createElement("option");
     entry.value = notebook;
     entry.innerHTML = decodeURIComponent(notebook);
     change_notebook.appendChild(entry);
   }
-  change_notebook.value = notebook;
   change_notebook.onchange = () => {
     location.assign(`?notebook=${encodeURIComponent(change_notebook.value)}`);
   };
@@ -70,4 +81,8 @@ export async function main() {
   eraser.onclick = () => {
     ui.is_eraser = !ui.is_eraser;
   };
+
+  window.addEventListener('beforeinstallprompt', (e) => {
+    console.log(e);
+  });
 }
