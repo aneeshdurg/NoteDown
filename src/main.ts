@@ -15,7 +15,6 @@ export async function main() {
       console.log(e);
     }
   }
-  console.log("!");
 
   const canvas = <HTMLCanvasElement>document.getElementById("mycanvas");
   canvas.width = 1000;
@@ -40,20 +39,17 @@ export async function main() {
 
   const storage = new LocalStorageManager();
   const doc = new NoteDownDocument();
-  const ui = new NoteDownRenderer(notebook, ctx, doc, storage);
+  const renderer = new NoteDownRenderer(ctx, doc, storage);
   storage.setActiveNotebook(notebook).then(async () => {
     if (await storage.notebookIsInitialized()) {
-      await ui.load(upgradeUI);
-      ui.clearAndRedraw();
+      await renderer.load(upgradeUI);
+      renderer.clearAndRedraw();
     } else {
-      await ui.save();
+      await renderer.save();
       await storage.initializeNotebook();
     }
-    ui.installEventHandlers();
+    renderer.installEventHandlers();
   });
-
-  (window as any).notedown_ui = ui;
-  (window as any).localForage = localForage;
 
   const new_notebook = <HTMLElement>document.getElementById("create-new-notebook");
   new_notebook.onclick = () => {
@@ -96,18 +92,19 @@ export async function main() {
     a.textContent = `Download ${encodeURIComponent(notebook)}.json`;
     document.body.appendChild(a);
     a.click();
+    a.remove();
   };
 
   const eraser = <HTMLElement>document.getElementById("eraser");
-  ui.on_eraser_flip = () => {
-    if (ui.is_eraser) {
+  renderer.on_eraser_flip = () => {
+    if (renderer.is_eraser) {
       eraser.innerText = "Pen";
     } else {
       eraser.innerText = "Eraser";
     }
   }
   eraser.onclick = () => {
-    ui.is_eraser = !ui.is_eraser;
+    renderer.flip_eraser_state();
   };
 
   const toc = <HTMLElement>document.getElementById("toc");
@@ -118,9 +115,14 @@ export async function main() {
     modal_dialog.classList.add("modal-dialog");
     modal_container.appendChild(modal_dialog);
 
+    const title = document.createElement("h1");
+    title.innerText = "Quick Links";
+    modal_dialog.appendChild(title);
+
     const toc_canvas = document.createElement("canvas");
     toc_canvas.width = 1000;
     toc_canvas.height = 1000;
+    toc_canvas.style.height = "85%";
     toc_canvas.style.width = "100%";
     const ctx = toc_canvas.getContext("2d")!;
 
@@ -134,12 +136,12 @@ export async function main() {
     };
 
     const root_doc = doc.rootOnlyDoc();
-    const toc_ui = new NoteDownRenderer(notebook, ctx, root_doc.doc, storage, true);
+    const toc_ui = new NoteDownRenderer(ctx, root_doc.doc, storage, true);
     toc_ui.clearAndRedraw();
     toc_ui.installEventHandlers();
     toc_ui.on_line_tap = (line_no: RealLineNumber) => {
-      ui.infer_line_mapping(root_doc.mapping.get(line_no)!);
-      ui.y_offset = 0;
+      renderer.infer_line_mapping(root_doc.mapping.get(line_no)!);
+      renderer.y_offset = 0;
       close_container();
     };
     document.body.appendChild(modal_container);
@@ -149,9 +151,7 @@ export async function main() {
     console.log(e);
   });
 
-  const render = () => {
-    ui.clearAndRedraw();
-    requestAnimationFrame(render);
-  };
-  requestAnimationFrame(render);
+  // for debugging purposes
+  (window as any).notedown_ui = renderer;
+  (window as any).localForage = localForage;
 }

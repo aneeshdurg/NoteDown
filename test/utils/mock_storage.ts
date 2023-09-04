@@ -68,4 +68,8 @@ export class MockStorageManager implements NoteDownStorageManager {
   async getUIState(): Promise<any> {
     return this.storage.get(this.active_notebook!)!.get("ui-state");
   }
+
+  async dumpNoteBookData(): Promise<Blob> {
+    return new Blob(["{}"], { type: "application/json" });
+  }
 }

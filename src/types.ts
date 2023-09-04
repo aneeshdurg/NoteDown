@@ -31,10 +31,6 @@ export interface CanvasContext {
   save: typeof CanvasRenderingContext2D.prototype.save;
   restore: typeof CanvasRenderingContext2D.prototype.restore;
   transform: typeof CanvasRenderingContext2D.prototype.transform;
-  font: typeof CanvasRenderingContext2D.prototype.font;
-  fillText: typeof CanvasRenderingContext2D.prototype.fillText;
-  strokeRect: typeof CanvasRenderingContext2D.prototype.strokeRect;
-  measureText: typeof CanvasRenderingContext2D.prototype.measureText;
 };
 
 

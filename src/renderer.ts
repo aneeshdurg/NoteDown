@@ -3,7 +3,7 @@ import { CanvasContext, RealLineNumber, RenderedLineNumber } from './types.ts';
 import { NoteDownDocument } from './document.ts';
 import { NoteDownStorageManager } from './storage_manager.ts';
 
-import { DragEvent, Region } from './ui.ts';
+import { DragEvent, Region } from './event_manager.ts';
 
 interface InteractiveEvent {
   clientX: number;
@@ -11,41 +11,39 @@ interface InteractiveEvent {
 };
 
 export class NoteDownRenderer {
-  name: string;
   doc: NoteDownDocument;
   storage: NoteDownStorageManager;
-
   ctx: CanvasContext
+
+  // state for drawing a stroke
   currentStroke: Stroke | null = null;
   curr_location: Point | null = null;
-
-  line_spacing = 50;
-  left_margin = 50;
-  y_offset = 0;
-
-  lineToRealLine: Map<RenderedLineNumber, RealLineNumber> = new Map();
-  rendered_lines: number;
-
-  hidden_roots: Set<RealLineNumber> = new Set();
-
-  scroll_delta: number = 0.01;
-
   is_eraser = false;
-  on_eraser_flip: (() => void) | null = null;
-
   write_in_progress = false;
 
-  readonly = false;
+  // rendering configuration
+  line_spacing = 50;
+  left_margin = 50;
+  scroll_delta: number = 0.01;
+
+  // state of the renderer
+  y_offset = 0;
+  lineToRealLine: Map<RenderedLineNumber, RealLineNumber> = new Map();
+  rendered_lines: number;
+  hidden_roots: Set<RealLineNumber> = new Set();
+
+  // callbacks to customize behavior
+  on_eraser_flip: (() => void) | null = null;
   on_line_tap: ((line_no: RealLineNumber) => void) | null = null;
+  on_redraw: ((ctx: CanvasContext) => void) | null = null;
+  readonly = false;
 
   constructor(
-    name: string,
     ctx: CanvasContext,
     doc: NoteDownDocument,
     storage: NoteDownStorageManager,
     readonly: boolean = false,
   ) {
-    this.name = name;
     this.doc = doc;
     this.storage = storage;
 
@@ -196,16 +194,20 @@ export class NoteDownRenderer {
     }
   }
 
+  flip_eraser_state() {
+    this.is_eraser = !this.is_eraser;
+    if (this.on_eraser_flip) {
+      this.on_eraser_flip();
+    }
+  }
+
   last_tap_time = 0;
   double_tap_time = 250;
   onTap(pt: Point) {
     const curr_time = (new Date()).getTime();
     if ((curr_time - this.last_tap_time) < this.double_tap_time) {
       if (!this.readonly) {
-        this.is_eraser = !this.is_eraser;
-        if (this.on_eraser_flip) {
-          this.on_eraser_flip();
-        }
+        this.flip_eraser_state();
       }
     } else {
       if (this.on_line_tap) {
@@ -415,6 +417,9 @@ export class NoteDownRenderer {
         this.ctx.stroke();
       }
     });
+    if (this.on_redraw) {
+      this.on_redraw(this.ctx);
+    }
     this.ctx.restore();
   }
 
