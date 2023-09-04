@@ -1,6 +1,7 @@
-import { NoteDownStorageManager } from "./storage_manager.ts";
+import { NoteDownStorageManager, LineSaveData } from "./storage_manager.ts";
 import { Stroke } from "./stroke.ts";
 import { RealLineNumber } from './types.ts';
+import { JsonValue, JsonObject } from './types.ts';
 
 import localForage from "localforage";
 
@@ -60,7 +61,7 @@ export class LocalStorageManager implements NoteDownStorageManager {
     scale_factor: number,
     old_margin: number,
     new_margin: number
-  ): Promise<{ strokes: Stroke[] | null, firstContent: number | null }> {
+  ): Promise<LineSaveData> {
     const mapX = (x: number) => (x - old_margin) * scale_factor + new_margin;
     const strokes_raw: any[] | null = await this.store.getItem(`content-strokes-line${lineNumber}`);
     const strokes = strokes_raw ? strokes_raw.map((o: any): Stroke => {
@@ -89,4 +90,25 @@ export class LocalStorageManager implements NoteDownStorageManager {
     return await this.store.getItem('ui-state');
   }
 
+  async dumpNoteBookData(): Promise<Blob> {
+    const obj: { [key: string]: JsonValue } = {
+      name: this.active_notebook,
+      initialized: true,
+    };
+    const saved_lines = await this.listSavedLines();
+    const saved_lines_list: RealLineNumber[] = [];
+    const lineSaveData: JsonObject = {};
+    for (let line of saved_lines) {
+      saved_lines_list.push(line);
+      lineSaveData[line] = {
+        strokes: await this.store.getItem(`content-strokes-line${line}`),
+        firstContent: await this.store.getItem(`content-firstContent-line${line}`),
+      };
+    }
+    obj["line-save-data"] = lineSaveData;
+    obj["lastline"] = await this.getLastLine();
+
+    const data = JSON.stringify(obj);
+    return new Blob([data], { type: "application/json" });
+  };
 }

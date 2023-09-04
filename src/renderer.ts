@@ -16,7 +16,6 @@ export class NoteDownRenderer {
   storage: NoteDownStorageManager;
 
   ctx: CanvasContext
-  clicked = false;
   currentStroke: Stroke | null = null;
   curr_location: Point | null = null;
 
@@ -34,12 +33,17 @@ export class NoteDownRenderer {
   is_eraser = false;
   on_eraser_flip: (() => void) | null = null;
 
+  write_in_progress = false;
+
+  readonly = false;
+  on_line_tap: ((line_no: RealLineNumber) => void) | null = null;
+
   constructor(
     name: string,
-    upgradeUI: boolean,
     ctx: CanvasContext,
     doc: NoteDownDocument,
-    storage: NoteDownStorageManager
+    storage: NoteDownStorageManager,
+    readonly: boolean = false,
   ) {
     this.name = name;
     this.doc = doc;
@@ -52,21 +56,15 @@ export class NoteDownRenderer {
       this.lineToRealLine.set(i as RenderedLineNumber, i as RealLineNumber);
     }
 
-    this.draw_layout();
+    this.readonly = readonly;
 
-    this.storage.setActiveNotebook(name).then(async () => {
-      if (await this.storage.notebookIsInitialized()) {
-        await this.load(upgradeUI);
-        this.clearAndRedraw();
-      } else {
-        await this.save();
-        await this.storage.initializeNotebook();
-      }
-      this.installEventHandlers();
-    });
+    this.draw_layout();
   }
 
   async save() {
+    if (this.readonly) {
+      return;
+    }
     const state = {
       lineToRealLine: this.lineToRealLine,
       hidden_roots: this.hidden_roots,
@@ -123,10 +121,7 @@ export class NoteDownRenderer {
     let mode: "scroll" | "indent" = "scroll";
 
     const mainbody = new Region({ x: this.left_margin, y: 0 }, this.ctx.canvas.width - this.left_margin, this.ctx.canvas.height, 5, 0);
-    const mainbody_cbs = {
-      penDrag: this.onPenMove.bind(this),
-      penDragEnd: this.onPenUp.bind(this),
-      penDragCancel: this.onPenUp.bind(this),
+    const mainbody_readonly_cbs = {
       drag: async (evt: DragEvent) => {
         if (scrollPos === null) {
           // save the position without transforming
@@ -167,39 +162,57 @@ export class NoteDownRenderer {
         lineToIndent = null;
         mode = "scroll";
       },
-      longPress: (pt: Point) => {
-        navigator.vibrate([100]);
-        mode = "indent";
-        lineToIndent = Math.floor(this.transformCoords(pt).y / this.line_spacing) as RenderedLineNumber;
-      },
       tap: this.onTap.bind(this),
     };
-    mainbody.registerRegion(this.ctx.canvas as HTMLCanvasElement, mainbody_cbs);
+    mainbody.registerRegion(this.ctx.canvas as HTMLCanvasElement, mainbody_readonly_cbs);
 
-    // Margin events
-    const margin = new Region({ x: 0, y: 0 }, this.left_margin, this.ctx.canvas.height, 5, 10);
-    const margin_cbs = {
-      drag: this.selectMoveTarget.bind(this),
-      dragEnd: this.confirmMoveTarget.bind(this),
-      dragCancel: this.moveCancel.bind(this),
-      tap: (pt: Point) => console.log("TAP", pt),
-      longPress: (_: Point) => {
-        navigator.vibrate([100]);
-        return true;
-      },
-      penTap: this.clickHandler.bind(this),
-    };
-    margin.registerRegion(this.ctx.canvas as HTMLCanvasElement, margin_cbs as any);
+    if (!this.readonly) {
+      const mainbody_editing_cbs = {
+        penDrag: this.onPenMove.bind(this),
+        penDragEnd: this.onPenUp.bind(this),
+        penDragCancel: this.onPenUp.bind(this),
+        longPress: (pt: Point) => {
+          navigator.vibrate([100]);
+          mode = "indent";
+          lineToIndent = Math.floor(this.transformCoords(pt).y / this.line_spacing) as RenderedLineNumber;
+        },
+      }
+      mainbody.registerRegion(this.ctx.canvas as HTMLCanvasElement, mainbody_editing_cbs);
+
+      // Margin events
+      const margin = new Region({ x: 0, y: 0 }, this.left_margin, this.ctx.canvas.height, 5, 10);
+      const margin_cbs = {
+        drag: this.selectMoveTarget.bind(this),
+        dragEnd: this.confirmMoveTarget.bind(this),
+        dragCancel: this.moveCancel.bind(this),
+        tap: (pt: Point) => console.log("TAP", pt),
+        longPress: (_: Point) => {
+          navigator.vibrate([100]);
+          return true;
+        },
+        penTap: this.clickHandler.bind(this),
+      };
+      margin.registerRegion(this.ctx.canvas as HTMLCanvasElement, margin_cbs as any);
+    }
   }
 
   last_tap_time = 0;
   double_tap_time = 250;
-  onTap(_pt: Point) {
+  onTap(pt: Point) {
     const curr_time = (new Date()).getTime();
     if ((curr_time - this.last_tap_time) < this.double_tap_time) {
-      this.is_eraser = !this.is_eraser;
-      if (this.on_eraser_flip) {
-        this.on_eraser_flip();
+      if (!this.readonly) {
+        this.is_eraser = !this.is_eraser;
+        if (this.on_eraser_flip) {
+          this.on_eraser_flip();
+        }
+      }
+    } else {
+      if (this.on_line_tap) {
+        const coords = this.transformCoords(pt);
+        let curr_line = Math.floor(coords.y / this.line_spacing) as RenderedLineNumber;
+        const real_line = this.lineToRealLine.get(curr_line)!;
+        this.on_line_tap(real_line);
       }
     }
     this.last_tap_time = curr_time;
@@ -312,7 +325,13 @@ export class NoteDownRenderer {
       }
     }
 
-    let curr_line = this.lineToRealLine.get(0 as RenderedLineNumber)!;
+    this.infer_line_mapping(this.lineToRealLine.get(0 as RenderedLineNumber)!);
+    this.clearAndRedraw();
+    this.save();
+  }
+
+  infer_line_mapping(first_line: RealLineNumber) {
+    let curr_line = first_line;
     for (let i = 0 as RenderedLineNumber; i < this.rendered_lines; i++) {
       this.lineToRealLine.set(i, curr_line);
       if (this.hidden_roots.has(curr_line)) {
@@ -321,8 +340,6 @@ export class NoteDownRenderer {
       // always increment by 1
       curr_line++;
     }
-    this.clearAndRedraw();
-    this.save();
   }
 
   // Draw ruled layout
@@ -362,6 +379,9 @@ export class NoteDownRenderer {
   }
 
   clearAndRedraw() {
+    if (this.write_in_progress && !this.is_eraser) {
+      return;
+    }
     this.clear();
     this.ctx.save();
     this.ctx.transform(1, 0, 0, 1, 0, -1 * this.y_offset * this.line_spacing);
@@ -405,7 +425,7 @@ export class NoteDownRenderer {
     }
     this.currentStroke = new Stroke(coords.y - (coords.y % this.line_spacing))
     this.currentStroke.add(coords.x, coords.y);
-    this.clicked = true;
+    this.write_in_progress = true;
     this.curr_location = coords;
   }
 
@@ -494,10 +514,10 @@ export class NoteDownRenderer {
   }
 
   async onPenUp() {
-    if (!this.clicked || !this.currentStroke) {
+    if (!this.write_in_progress || !this.currentStroke) {
       return;
     }
-    this.clicked = false;
+    this.write_in_progress = false;
     this.curr_location = null;
     if (!this.is_eraser) {
       this.ctx.save();
@@ -525,13 +545,13 @@ export class NoteDownRenderer {
 
   async onPenMove(evt: DragEvent) {
     const coords = this.transformCoords(evt.end);
-    if (!this.clicked) {
+    if (!this.write_in_progress) {
+      this.write_in_progress = true;
       this.currentStroke = new Stroke(coords.y - (coords.y % this.line_spacing))
       this.currentStroke.add(coords.x, coords.y);
-      this.clicked = true;
       this.curr_location = coords;
     }
-    if (!this.clicked || !this.curr_location) {
+    if (!this.write_in_progress || !this.curr_location) {
       return;
     }
     if (coords.x <= this.left_margin) {

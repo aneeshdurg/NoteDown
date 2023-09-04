@@ -51,6 +51,14 @@ export class NoteDownDocument {
     await Promise.all(promises);
   }
 
+  hasContent(lineNo: RealLineNumber) {
+    const firstContent = this.linesTofirstContent.get(lineNo);
+    if (firstContent === undefined || firstContent === 0) {
+      return false;
+    }
+    return true;
+  }
+
   childLines(root: RealLineNumber) {
     let section: RealLineNumber[] = [];
     let blankLineCount = 0;
@@ -83,7 +91,7 @@ export class NoteDownDocument {
     return section;
   }
 
-  async add_stroke(curr_line: RealLineNumber, stroke: Stroke, storage: NoteDownStorageManager) {
+  async add_stroke(curr_line: RealLineNumber, stroke: Stroke, storage: NoteDownStorageManager | null) {
     if (this.linesToStrokes.get(curr_line) === undefined) {
       this.linesToStrokes.set(curr_line, []);
     }
@@ -97,7 +105,10 @@ export class NoteDownDocument {
       Math.min(this.linesTofirstContent.get(curr_line) || 0, leftMostPoint));
 
 
-    await this.saveToStorage(curr_line, storage);
+    if (storage) {
+      await this.saveToStorage(curr_line, storage);
+    }
+    await this.updateLastLine(curr_line, storage);
   }
 
   async updateStrokes(line: RealLineNumber, strokes: Stroke[], storage: NoteDownStorageManager) {
@@ -114,10 +125,12 @@ export class NoteDownDocument {
     await storage.saveLine(line, this.linesToStrokes.get(line)!, this.linesTofirstContent.get(line)!);
   }
 
-  async updateLastLine(new_last: RealLineNumber, storage: NoteDownStorageManager) {
+  async updateLastLine(new_last: RealLineNumber, storage: NoteDownStorageManager | null) {
     // TODO The document can only ever grow with this implementation
     this.last_line = Math.max(this.last_line, new_last);
-    await storage.saveLastLine(this.last_line);
+    if (storage) {
+      await storage.saveLastLine(this.last_line);
+    }
   }
 
   async moveLines(src: RealLineNumber, dst: RealLineNumber, move_children: boolean, storage: NoteDownStorageManager) {
@@ -178,5 +191,33 @@ export class NoteDownDocument {
     for (let i = 0 as RealLineNumber; i < this.last_line; i++) {
       await this.saveToStorage(i, storage);
     }
+  }
+
+  rootOnlyDoc(): { doc: NoteDownDocument, mapping: Map<RealLineNumber, RealLineNumber> } {
+    const doc = new NoteDownDocument();
+    let new_line_no = 0 as RealLineNumber;
+    let i = 0 as RealLineNumber
+    const mapping = new Map<RealLineNumber, RealLineNumber>();
+    while (i <= this.last_line) {
+      if (this.hasContent(i)) {
+        const children = this.childLines(i).length;
+        console.log("Selecting", i, this.last_line, children);
+        for (let s of this.linesToStrokes.get(i)!) {
+          doc.add_stroke(new_line_no, s, null);
+        }
+        mapping.set(new_line_no, i);
+        new_line_no = new_line_no + 1 as RealLineNumber;
+        if (children) {
+          i = i + children as RealLineNumber;
+        } else {
+          console.log("   !", i);
+        }
+      } else {
+        console.log("   !", i, this.linesTofirstContent.get(i));
+      }
+      i++;
+    }
+    console.log(this.linesTofirstContent);
+    return { doc: doc, mapping: mapping };
   }
 }
