@@ -1,9 +1,66 @@
 import { NoteDownDocument } from './document.ts';
 import { NoteDownRenderer } from './renderer.ts';
+import { NoteDownStorageManager } from './storage_manager.ts';
 import { LocalStorageManager } from './local_storage_manager.ts';
 import { RealLineNumber } from './types.ts';
+import { Modal } from './modal.ts';
 
 import localForage from "localforage";
+
+async function setupNotebookSwitcher(current_notebook: string, storage: NoteDownStorageManager) {
+  const change_notebook = <HTMLSelectElement>document.getElementById("change-notebook");
+  const notebooks = await storage.listNotebooks();
+  const entry = document.createElement("option");
+  entry.value = encodeURIComponent(current_notebook);
+  entry.innerHTML = current_notebook;
+  change_notebook.appendChild(entry);
+  change_notebook.value = current_notebook;
+  for (let name of notebooks) {
+    if (name == current_notebook) {
+      continue;
+    }
+    const entry = document.createElement("option");
+    entry.value = name;
+    entry.innerHTML = decodeURIComponent(name);
+    change_notebook.appendChild(entry);
+  }
+  change_notebook.onchange = () => {
+    location.assign(`?notebook=${encodeURIComponent(change_notebook.value)}`);
+  };
+}
+
+function setupNotebookCreator() {
+  const new_notebook = <HTMLElement>document.getElementById("create-new-notebook");
+  new_notebook.onclick = () => {
+    while (true) {
+      const value = prompt("New notebook name");
+      if (value === "") {
+        alert("Please enter a notebook name");
+        continue
+      } else if (value) {
+        location.assign(`?notebook=${encodeURIComponent(value)}`);
+      }
+      break;
+    }
+  };
+}
+
+async function quickLinks(doc: NoteDownDocument, storage: NoteDownStorageManager, renderer: NoteDownRenderer) {
+  const modal = new Modal("Quick Links");
+
+  const quick_links = doc.rootOnlyDoc();
+  const ctx = modal.add_canvas();
+  const toc_ui = new NoteDownRenderer(ctx, quick_links.doc, storage, true);
+  toc_ui.clearAndRedraw();
+  toc_ui.installEventHandlers();
+  toc_ui.on_line_tap = (line_no: RealLineNumber) => {
+    renderer.infer_line_mapping(quick_links.mapping.get(line_no)!);
+    renderer.y_offset = 0;
+    modal.close_container();
+  };
+
+  modal.attach(document.body);
+}
 
 export async function main() {
   if ("serviceWorker" in navigator) {
@@ -40,53 +97,25 @@ export async function main() {
   const storage = new LocalStorageManager();
   const doc = new NoteDownDocument();
   const renderer = new NoteDownRenderer(ctx, doc, storage);
-  storage.setActiveNotebook(notebook).then(async () => {
-    if (await storage.notebookIsInitialized()) {
-      await renderer.load(upgradeUI);
-      renderer.clearAndRedraw();
-    } else {
-      await renderer.save();
-      await storage.initializeNotebook();
-    }
-    renderer.installEventHandlers();
-  });
 
-  const new_notebook = <HTMLElement>document.getElementById("create-new-notebook");
-  new_notebook.onclick = () => {
-    while (true) {
-      const value = prompt("New notebook name");
-      if (value === "") {
-        alert("Please enter a notebook name");
-        continue
-      } else if (value) {
-        location.assign(`?notebook=${encodeURIComponent(value)}`);
-      }
-      break;
-    }
-  };
-
-  const change_notebook = <HTMLSelectElement>document.getElementById("change-notebook");
-  const notebooks = await storage.listNotebooks();
-  const entry = document.createElement("option");
-  entry.value = encodeURIComponent(notebook);
-  entry.innerHTML = notebook;
-  change_notebook.appendChild(entry);
-  change_notebook.value = notebook;
-  for (let notebook of notebooks) {
-    const entry = document.createElement("option");
-    entry.value = notebook;
-    entry.innerHTML = decodeURIComponent(notebook);
-    change_notebook.appendChild(entry);
+  await storage.setActiveNotebook(notebook);
+  if (await storage.notebookIsInitialized()) {
+    await renderer.load(upgradeUI);
+    renderer.clearAndRedraw();
+  } else {
+    await renderer.save();
+    await storage.initializeNotebook();
   }
-  change_notebook.onchange = () => {
-    location.assign(`?notebook=${encodeURIComponent(change_notebook.value)}`);
-  };
+  renderer.installEventHandlers();
+
+  setupNotebookCreator();
+  await setupNotebookSwitcher(notebook, storage);
 
   const download = <HTMLElement>document.getElementById("download");
   download.onclick = async () => {
     const blob = await storage.dumpNoteBookData();
-    var url = URL.createObjectURL(blob);
-    var a = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
     a.href = url;
     a.download = `${encodeURIComponent(notebook)}.json`;
     a.textContent = `Download ${encodeURIComponent(notebook)}.json`;
@@ -108,44 +137,7 @@ export async function main() {
   };
 
   const toc = <HTMLElement>document.getElementById("toc");
-  toc.onclick = async () => {
-    const modal_container = document.createElement("div");
-    modal_container.classList.add("modal");
-    const modal_dialog = document.createElement("div");
-    modal_dialog.classList.add("modal-dialog");
-    modal_container.appendChild(modal_dialog);
-
-    const title = document.createElement("h1");
-    title.innerText = "Quick Links";
-    modal_dialog.appendChild(title);
-
-    const toc_canvas = document.createElement("canvas");
-    toc_canvas.width = 1000;
-    toc_canvas.height = 1000;
-    toc_canvas.style.height = "85%";
-    toc_canvas.style.width = "100%";
-    const ctx = toc_canvas.getContext("2d")!;
-
-    modal_dialog.appendChild(toc_canvas);
-    const close_container = () => {
-      modal_container.remove();
-    };
-    modal_container.onclick = close_container;
-    modal_dialog.onclick = (e) => {
-      e.stopPropagation();
-    };
-
-    const root_doc = doc.rootOnlyDoc();
-    const toc_ui = new NoteDownRenderer(ctx, root_doc.doc, storage, true);
-    toc_ui.clearAndRedraw();
-    toc_ui.installEventHandlers();
-    toc_ui.on_line_tap = (line_no: RealLineNumber) => {
-      renderer.infer_line_mapping(root_doc.mapping.get(line_no)!);
-      renderer.y_offset = 0;
-      close_container();
-    };
-    document.body.appendChild(modal_container);
-  };
+  toc.onclick = () => { quickLinks(doc, storage, renderer); };
 
   window.addEventListener('beforeinstallprompt', (e) => {
     console.log(e);

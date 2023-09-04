@@ -125,11 +125,51 @@ export class NoteDownDocument {
     await storage.saveLine(line, this.linesToStrokes.get(line)!, this.linesTofirstContent.get(line)!);
   }
 
-  async updateLastLine(new_last: RealLineNumber, storage: NoteDownStorageManager | null) {
+  async updateLastLine(new_last: RealLineNumber, storage: NoteDownStorageManager | null, force: boolean = false) {
     // TODO The document can only ever grow with this implementation
     this.last_line = Math.max(this.last_line, new_last);
+    if (force) {
+      this.last_line = new_last;
+    }
     if (storage) {
       await storage.saveLastLine(this.last_line);
+    }
+  }
+
+  async deleteLines(start: RealLineNumber, count: number, storage: NoteDownStorageManager) {
+    for (let i = start; i < this.last_line; i++) {
+      const line = i + count as RealLineNumber
+      if (this.linesToStrokes.get(line) !== undefined) {
+        this.linesToStrokes.set(i, this.linesToStrokes.get(line)!);
+        this.linesTofirstContent.set(i, this.linesTofirstContent.get(line)!);
+      } else {
+        this.linesToStrokes.delete(i);
+        this.linesTofirstContent.delete(i);
+      }
+    }
+    this.updateLastLine(this.last_line - count as RealLineNumber, storage, true);
+    for (let i = 0 as RealLineNumber; i < this.last_line; i++) {
+      await this.saveToStorage(i, storage);
+    }
+  }
+
+  async insertLines(target: RealLineNumber, count: number, storage: NoteDownStorageManager) {
+    for (let i = this.last_line as RealLineNumber; i >= target; i--) {
+      const line = i + count as RealLineNumber;
+      if (this.linesToStrokes.get(i) !== undefined) {
+        this.linesToStrokes.set(line, this.linesToStrokes.get(i)!);
+        this.linesTofirstContent.set(line, this.linesTofirstContent.get(i)!);
+
+        this.linesToStrokes.delete(i);
+        this.linesTofirstContent.delete(i);
+      } else {
+        this.linesToStrokes.delete(line);
+        this.linesTofirstContent.delete(line);
+      }
+    }
+    this.updateLastLine(this.last_line + count as RealLineNumber, storage);
+    for (let i = 0 as RealLineNumber; i < this.last_line; i++) {
+      await this.saveToStorage(i, storage);
     }
   }
 
@@ -147,34 +187,14 @@ export class NoteDownDocument {
     }
 
     // Remove the lines from the src document
-    for (let i = src; i < this.last_line; i++) {
-      const line = i + remap_amt as RealLineNumber
-      if (this.linesToStrokes.get(line) !== undefined) {
-        this.linesToStrokes.set(i, this.linesToStrokes.get(line)!);
-        this.linesTofirstContent.set(i, this.linesTofirstContent.get(line)!);
-      } else {
-        this.linesToStrokes.delete(i);
-        this.linesTofirstContent.delete(i);
-      }
-    }
-    this.last_line -= remap_amt;
+    await this.deleteLines(src, remap_amt, storage);
 
     if (dst > src) {
       dst = dst - remap_amt as RealLineNumber;
     }
 
     // Create a gap where the new lines will go
-    for (let i = this.last_line as RealLineNumber; i >= dst; i--) {
-      const line = i + remap_amt as RealLineNumber;
-      if (this.linesToStrokes.get(i) !== undefined) {
-        this.linesToStrokes.set(line, this.linesToStrokes.get(i)!);
-        this.linesTofirstContent.set(line, this.linesTofirstContent.get(i)!);
-      } else {
-        this.linesToStrokes.delete(line);
-        this.linesTofirstContent.delete(line);
-      }
-    }
-    this.last_line += remap_amt;
+    this.insertLines(dst, remap_amt, storage);
 
     // Paste the new lines
     for (let i = 0; i < remap_amt; i++) {

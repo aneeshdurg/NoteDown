@@ -2,6 +2,7 @@ import { Point, Stroke } from './stroke.ts';
 import { CanvasContext, RealLineNumber, RenderedLineNumber } from './types.ts';
 import { NoteDownDocument } from './document.ts';
 import { NoteDownStorageManager } from './storage_manager.ts';
+import { Modal, modalAlert } from './modal.ts';
 
 import { DragEvent, Region } from './event_manager.ts';
 
@@ -184,8 +185,70 @@ export class NoteDownRenderer {
         dragEnd: this.confirmMoveTarget.bind(this),
         dragCancel: this.moveCancel.bind(this),
         tap: (pt: Point) => console.log("TAP", pt),
-        longPress: (_: Point) => {
+        longPress: (pt: Point) => {
+          const coords = this.transformCoords(pt);
+          const curr_line = Math.floor(coords.y / this.line_spacing) as RenderedLineNumber;
+          const real_line = this.lineToRealLine.get(curr_line)!;
           navigator.vibrate([100]);
+          const modal = new Modal("Add/Delete lines");
+          const add = document.createElement("button");
+          add.innerText = "add";
+          add.classList.add("addline");
+          add.innerText = "add";
+          const addlinecount = document.createElement("input");
+          addlinecount.type = "number";
+          addlinecount.value = "1";
+          addlinecount.classList.add("addlinecount");
+          const del = document.createElement("button");
+          del.innerText = "delete";
+          del.classList.add("delline");
+
+          modal.appendChild(add);
+          modal.appendChild(addlinecount);
+          modal.appendChild(document.createElement("br"));
+          modal.appendChild(document.createElement("br"));
+          modal.appendChild(del);
+          modal.attach(document.body);
+
+          add.onclick = async () => {
+            modal.close_container();
+            const lines = Math.floor(Number(addlinecount.value));
+            await this.doc.insertLines(real_line, lines, this.storage);
+            const new_hidden_roots = new Set<RealLineNumber>();
+            this.hidden_roots.forEach((root) => {
+              if (root >= real_line) {
+                new_hidden_roots.add(root + lines as RealLineNumber);
+              } else {
+                new_hidden_roots.add(root);
+              }
+            });
+            this.hidden_roots = new_hidden_roots;
+
+            this.infer_line_mapping();
+            this.clearAndRedraw();
+            this.save();
+          };
+          del.onclick = () => {
+            modal.close_container();
+            let count = 1;
+            if (this.hidden_roots.has(real_line)) {
+              count += this.doc.childLines(real_line).length;
+            }
+            this.doc.deleteLines(real_line, count, this.storage);
+            const new_hidden_roots = new Set<RealLineNumber>();
+            this.hidden_roots.forEach((root) => {
+              if (root > (real_line + count)) {
+                new_hidden_roots.add(root - count as RealLineNumber);
+              } else if (root < real_line) {
+                new_hidden_roots.add(root);
+              }
+            });
+            this.hidden_roots = new_hidden_roots;
+
+            this.infer_line_mapping();
+            this.clearAndRedraw();
+            this.save();
+          };
           return true;
         },
         penTap: this.clickHandler.bind(this),
@@ -332,7 +395,10 @@ export class NoteDownRenderer {
     this.save();
   }
 
-  infer_line_mapping(first_line: RealLineNumber) {
+  infer_line_mapping(first_line: RealLineNumber | null = null) {
+    if (first_line === null) {
+      first_line = this.lineToRealLine.get(0 as RenderedLineNumber)!;
+    }
     let curr_line = first_line;
     for (let i = 0 as RenderedLineNumber; i < this.rendered_lines; i++) {
       this.lineToRealLine.set(i, curr_line);
