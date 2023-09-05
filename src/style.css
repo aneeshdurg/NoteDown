@@ -85,9 +85,20 @@ body {
 .modalalert-ok {
   padding: 0.5em;
   float: right;
-  width: 50%;
+  width: 48%;
   background: #7f93fb;
   margin-top: 5%;
+}
+.modalalert-cancel {
+  padding: 0.5em;
+  float: left;
+  width: 48%;
+  background: #fb7f7f;
+  margin-top: 5%;
+}
+.modalprompt-input {
+  padding: 0.5em;
+  width: 95%;
 }
 
 .addline {

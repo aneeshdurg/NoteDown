@@ -3,7 +3,7 @@ import { NoteDownRenderer } from './renderer.ts';
 import { NoteDownStorageManager } from './storage_manager.ts';
 import { LocalStorageManager } from './local_storage_manager.ts';
 import { RealLineNumber } from './types.ts';
-import { Modal } from './modal.ts';
+import { Modal, modalAlert, modalPrompt } from './modal.ts';
 
 import localForage from "localforage";
 
@@ -31,11 +31,16 @@ async function setupNotebookSwitcher(current_notebook: string, storage: NoteDown
 
 function setupNotebookCreator() {
   const new_notebook = <HTMLElement>document.getElementById("create-new-notebook");
-  new_notebook.onclick = () => {
+  new_notebook.onclick = async () => {
     while (true) {
-      const value = prompt("New notebook name");
+      const value = await modalPrompt("New notebook name");
       if (value === "") {
-        alert("Please enter a notebook name");
+        await new Promise<void>((r) => {
+          const modal = modalAlert("Please enter a notebook name");
+          // add a short delay to allow the modal to despawn before the loop
+          // resumes
+          modal.on_close = () => { setTimeout(r, 0); };
+        });
         continue
       } else if (value) {
         location.assign(`?notebook=${encodeURIComponent(value)}`);
@@ -56,6 +61,7 @@ async function quickLinks(doc: NoteDownDocument, storage: NoteDownStorageManager
   toc_ui.on_line_tap = (line_no: RealLineNumber) => {
     renderer.infer_line_mapping(quick_links.mapping.get(line_no)!);
     renderer.y_offset = 0;
+    renderer.clearAndRedraw();
     modal.close_container();
   };
 

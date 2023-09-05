@@ -2,7 +2,7 @@ import { Point, Stroke } from './stroke.ts';
 import { CanvasContext, RealLineNumber, RenderedLineNumber } from './types.ts';
 import { NoteDownDocument } from './document.ts';
 import { NoteDownStorageManager } from './storage_manager.ts';
-import { Modal, modalAlert } from './modal.ts';
+import { Modal } from './modal.ts';
 
 import { DragEvent, Region } from './event_manager.ts';
 

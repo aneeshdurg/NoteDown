@@ -51,7 +51,7 @@ export class Modal {
   }
 }
 
-export function modalAlert(msg: string) {
+export function modalAlert(msg: string): Modal {
   const modal = new Modal(msg);
   const ok = document.createElement("button");
   ok.classList.add("modalalert-ok");
@@ -61,4 +61,38 @@ export function modalAlert(msg: string) {
   }
   modal.appendChild(ok);
   modal.attach(document.body);
+  return modal;
+}
+
+export function modalPrompt(msg: string): Promise<string | null> {
+  return new Promise<string | null>((r) => {
+    const modal = new Modal(msg);
+    const input = document.createElement("input");
+    input.classList.add("modalprompt-input");
+    modal.appendChild(input);
+    const ok = document.createElement("button");
+    ok.classList.add("modalalert-ok");
+    ok.innerText = "ok";
+    ok.onclick = () => {
+      modal.close_container();
+      r(input.value);
+    };
+    modal.appendChild(ok);
+    const cancel = document.createElement("button");
+    cancel.classList.add("modalalert-cancel");
+    cancel.innerText = "cancel";
+    cancel.onclick = () => {
+      modal.close_container();
+      r(null);
+    }
+    modal.appendChild(cancel);
+
+    input.addEventListener("keypress", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        ok.click();
+      }
+    });
+    modal.attach(document.body);
+  });
 }
