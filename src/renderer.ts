@@ -102,10 +102,10 @@ export class NoteDownRenderer {
 
   wheelHandler(e: WheelEvent) {
     if (e.deltaY > 0) {
-      this.scrollDown();
+      this.scrollDown(this.scroll_delta);
       this.clearAndRedraw();
     } else if (e.deltaY < 0) {
-      this.scrollUp();
+      this.scrollUp(this.scroll_delta);
       this.clearAndRedraw();
     }
     e.preventDefault();
@@ -129,14 +129,26 @@ export class NoteDownRenderer {
         if (mode == "scroll") {
           const deltaY = scrollPos.y - evt.end.y;
           if (Math.abs(deltaY) > 10) {
+            const start = performance.now();
             for (let i = 0; i < 25; i++) {
               lineToIndent = null;
               if (deltaY < 0) {
-                this.scrollUp();
+                await this.scrollUp(this.scroll_delta);
               } else {
-                this.scrollDown();
+                await this.scrollDown(this.scroll_delta);
               }
               this.clearAndRedraw();
+              const elapsed = performance.now() - start;
+              if (elapsed > 1) {
+                const modified_scroll_delta = this.scroll_delta * (25 - i);
+                if (deltaY < 0) {
+                  await this.scrollUp(modified_scroll_delta);
+                } else {
+                  await this.scrollDown(modified_scroll_delta);
+                }
+                this.clearAndRedraw();
+                break;
+              }
             }
             scrollPos = evt.end;
           }
@@ -673,10 +685,10 @@ export class NoteDownRenderer {
     this.lineToRealLine.set(start, this.lineToRealLine.get(end)!);
   }
 
-  async scrollDown() {
+  async scrollDown(delta: number) {
     if (this.y_offset < 1) {
-      this.y_offset += this.scroll_delta;
-      if ((1 - this.y_offset) >= this.scroll_delta) {
+      this.y_offset += delta;
+      if ((1 - this.y_offset) >= delta) {
         return;
       }
     }
@@ -692,10 +704,10 @@ export class NoteDownRenderer {
     await this.save();
   }
 
-  async scrollUp() {
+  async scrollUp(delta: number) {
     if (this.y_offset > 0) {
-      this.y_offset -= this.scroll_delta;
-      if (this.y_offset >= this.scroll_delta) {
+      this.y_offset -= delta;
+      if (this.y_offset >= delta) {
         return;
       }
     }

@@ -22,6 +22,11 @@ export class LocalStorageManager implements NoteDownStorageManager {
   }
 
   async setActiveNotebook(notebook: string) {
+    if (this.known_notebooks.size === 0) {
+      for (let notebook of (await this.listNotebooks())) {
+        this.known_notebooks.add(notebook);
+      }
+    }
     this.active_notebook = notebook;
     this.store = localForage.createInstance({ name: notebook });
     this.saved_lines = (await this.store.getItem("saved_lines") as Set<RealLineNumber>) || new Set();

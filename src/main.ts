@@ -152,4 +152,10 @@ export async function main() {
   // for debugging purposes
   (window as any).notedown_ui = renderer;
   (window as any).localForage = localForage;
+
+  // const render = () => {
+  //   renderer.clearAndRedraw();
+  //   requestAnimationFrame(render);
+  // };
+  // requestAnimationFrame(render);
 }
