@@ -297,20 +297,6 @@ export class Region {
     canvas.addEventListener("pointercancel", penEventWrapper(pointerCancel));
     canvas.addEventListener("pointermove", penEventWrapper(touchMove));
 
-    // Disable all touch events - we only want pointer events
-    const disableTouchEvt = (e: TouchEvent) => {
-      try {
-        if (e.cancelable) {
-          e.preventDefault();
-        }
-      } catch (e) {
-        console.log("touch exception", e);
-      }
-    };
-    canvas.addEventListener("touchstart", disableTouchEvt);
-    canvas.addEventListener("touchend", disableTouchEvt);
-    canvas.addEventListener("touchmove", disableTouchEvt);
-
     // mouse compatibility layer
     const mouseEventWrapper = (f: WrappedFnType) => {
       return (e: MouseEvent) => {

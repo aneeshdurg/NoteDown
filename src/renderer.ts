@@ -129,27 +129,13 @@ export class NoteDownRenderer {
         if (mode == "scroll") {
           const deltaY = scrollPos.y - evt.end.y;
           if (Math.abs(deltaY) > 10) {
-            const start = performance.now();
-            for (let i = 0; i < 25; i++) {
-              lineToIndent = null;
-              if (deltaY < 0) {
-                await this.scrollUp(this.scroll_delta);
-              } else {
-                await this.scrollDown(this.scroll_delta);
-              }
-              this.clearAndRedraw();
-              const elapsed = performance.now() - start;
-              if (elapsed > 1) {
-                const modified_scroll_delta = this.scroll_delta * (25 - i);
-                if (deltaY < 0) {
-                  await this.scrollUp(modified_scroll_delta);
-                } else {
-                  await this.scrollDown(modified_scroll_delta);
-                }
-                this.clearAndRedraw();
-                break;
-              }
+            const delta = Math.abs(deltaY) / this.line_spacing;
+            if (deltaY < 0) {
+              await this.scrollUp(delta);
+            } else {
+              await this.scrollDown(delta);
             }
+            this.clearAndRedraw();
             scrollPos = evt.end;
           }
         } else {
@@ -686,56 +672,48 @@ export class NoteDownRenderer {
   }
 
   async scrollDown(delta: number) {
-    if (this.y_offset < 1) {
-      this.y_offset += delta;
-      if ((1 - this.y_offset) >= delta) {
-        return;
+    this.y_offset += delta;
+    while (this.y_offset > 1) {
+      this.y_offset -= 1;
+      for (let i = 0 as RenderedLineNumber; (i as number) < this.rendered_lines - 1; i++) {
+        this.remap(i, i + 1 as RenderedLineNumber);
       }
-    }
 
-    this.y_offset = 0;
-    for (let i = 0 as RenderedLineNumber; (i as number) < this.rendered_lines - 1; i++) {
-      this.remap(i, i + 1 as RenderedLineNumber);
+      let final_value = this.lineToRealLine.get(this.rendered_lines - 1 as RenderedLineNumber)!;
+      final_value = final_value + 1 as RealLineNumber;
+      this.lineToRealLine.set(this.rendered_lines - 1 as RenderedLineNumber, final_value);
+      await this.save();
     }
-
-    let final_value = this.lineToRealLine.get(this.rendered_lines - 1 as RenderedLineNumber)!;
-    final_value = final_value + 1 as RealLineNumber;
-    this.lineToRealLine.set(this.rendered_lines - 1 as RenderedLineNumber, final_value);
-    await this.save();
   }
 
   async scrollUp(delta: number) {
-    if (this.y_offset > 0) {
-      this.y_offset -= delta;
-      if (this.y_offset >= delta) {
+    this.y_offset -= delta;
+    while (this.y_offset < 0) {
+      if (this.lineToRealLine.get(0 as RenderedLineNumber)! == 0) {
+        this.y_offset = 0;
         return;
       }
-    }
+      this.y_offset += 1;
+      for (let i = this.rendered_lines - 1; i >= 1; i--) {
+        const next_value = this.lineToRealLine.get((i - 1) as RenderedLineNumber)!;
+        this.lineToRealLine.set(i as RenderedLineNumber, next_value);
+      }
 
-    if (this.lineToRealLine.get(0 as RenderedLineNumber)! == 0) {
-      this.y_offset = 0;
-      return;
-    }
-    this.y_offset = 1 - this.y_offset;
-    for (let i = this.rendered_lines - 1; i >= 1; i--) {
-      const next_value = this.lineToRealLine.get((i - 1) as RenderedLineNumber)!;
-      this.lineToRealLine.set(i as RenderedLineNumber, next_value);
-    }
-
-    let first_value = this.lineToRealLine.get(0 as RenderedLineNumber)!;
-    first_value = first_value - 1 as RealLineNumber;
-    let needs_transform = true;
-    while (needs_transform) {
-      needs_transform = false;
-      for (let root of this.hidden_roots) {
-        if (this.doc.childLines(root).includes(first_value)) {
-          first_value = root;
-          needs_transform = true;
-          break;
+      let first_value = this.lineToRealLine.get(0 as RenderedLineNumber)!;
+      first_value = first_value - 1 as RealLineNumber;
+      let needs_transform = true;
+      while (needs_transform) {
+        needs_transform = false;
+        for (let root of this.hidden_roots) {
+          if (this.doc.childLines(root).includes(first_value)) {
+            first_value = root;
+            needs_transform = true;
+            break;
+          }
         }
       }
+      this.lineToRealLine.set(0 as RenderedLineNumber, first_value);
+      await this.save();
     }
-    this.lineToRealLine.set(0 as RenderedLineNumber, first_value);
-    await this.save();
   }
 }
