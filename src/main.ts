@@ -117,18 +117,43 @@ export async function main() {
   setupNotebookCreator();
   await setupNotebookSwitcher(notebook, storage);
 
-  const download = <HTMLElement>document.getElementById("download");
-  download.onclick = async () => {
-    const blob = await storage.dumpNoteBookData();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${encodeURIComponent(notebook)}.json`;
-    a.textContent = `Download ${encodeURIComponent(notebook)}.json`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-  };
+  const enable_debug = urlParams.get("debug") || false;
+  if (enable_debug) {
+    const debug_controls = <HTMLElement>document.getElementById("debug");
+    debug_controls.style.display = "";
+    const download = <HTMLElement>document.getElementById("download");
+    download.onclick = async () => {
+      const blob = await storage.dumpNoteBookData();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${encodeURIComponent(notebook)}.json`;
+      a.textContent = `Download ${encodeURIComponent(notebook)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    };
+
+    const load = <HTMLInputElement>document.getElementById("load");
+    load.addEventListener("change", (e) => {
+      // getting a hold of the file reference
+      const file = (e.target as any).files[0] as Blob;
+
+      // setting up the reader
+      const reader = new FileReader();
+      reader.readAsText(file, 'UTF-8');
+
+      // here we tell the reader what to do when it's done reading...
+      reader.onload = async (readerEvent) => {
+        const content = readerEvent.target!.result as string; // this is the content!
+        const data = JSON.parse(content);
+        await storage.loadNoteBookData(data);
+        await renderer.save();
+        await renderer.load(false);
+        renderer.clearAndRedraw();
+      }
+    });
+  }
 
   const eraser = <HTMLElement>document.getElementById("eraser");
   renderer.on_eraser_flip = () => {

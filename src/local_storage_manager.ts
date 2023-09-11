@@ -110,10 +110,24 @@ export class LocalStorageManager implements NoteDownStorageManager {
         firstContent: await this.store.getItem(`content-firstContent-line${line}`),
       };
     }
+    obj["saved-lines"] = saved_lines_list;
     obj["line-save-data"] = lineSaveData;
     obj["lastline"] = await this.getLastLine();
 
     const data = JSON.stringify(obj);
     return new Blob([data], { type: "application/json" });
-  };
+  }
+
+  async loadNoteBookData(obj: any) {
+    await this.setActiveNotebook(obj["name"])
+    await this.initializeNotebook();
+
+    this.saved_lines = new Set(obj["saved-lines"])
+    for (let line of this.saved_lines) {
+      const line_data = obj["line-save-data"][line];
+      await this.store.setItem(`content-strokes-line${line}`, line_data.strokes);
+      await this.store.setItem(`content-firstContent-line${line}`, line_data.firstContent);
+    }
+    await this.saveLastLine(obj["lastline"]);
+  }
 }

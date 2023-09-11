@@ -86,15 +86,15 @@ export class NoteDownRenderer {
       if (state.hidden_roots) {
         this.hidden_roots = state.hidden_roots;
       }
-    }
-    if (state.line_spacing !== undefined) {
-      scale_factor = this.line_spacing / state.line_spacing;
-      this.line_spacing = state.line_spacing;
-    } else {
-      scale_factor = 0.5;
-    }
-    if (state.left_margin !== undefined) {
-      old_margin = state.left_margin;
+      if (state.line_spacing !== undefined) {
+        scale_factor = this.line_spacing / state.line_spacing;
+        this.line_spacing = state.line_spacing;
+      } else {
+        scale_factor = 0.5;
+      }
+      if (state.left_margin !== undefined) {
+        old_margin = state.left_margin;
+      }
     }
 
     await this.doc.load(this.storage, scale_factor, old_margin, new_margin);

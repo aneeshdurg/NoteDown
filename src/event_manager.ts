@@ -297,6 +297,25 @@ export class Region {
     canvas.addEventListener("pointercancel", penEventWrapper(pointerCancel));
     canvas.addEventListener("pointermove", penEventWrapper(touchMove));
 
+    // Disable all touch pen events - we don't want to pan while drawing
+    const disableTouchEvt = (e: TouchEvent) => {
+      try {
+        if (e.cancelable) {
+          for (let i = 0; i < e.changedTouches.length; i++) {
+            if (e.changedTouches[i].radiusX == 0 && e.changedTouches[i].radiusY == 0) {
+              e.preventDefault();
+              break;
+            }
+          }
+        }
+      } catch (e) {
+        console.log("touch exception", e);
+      }
+    };
+    canvas.addEventListener("touchstart", disableTouchEvt);
+    canvas.addEventListener("touchend", disableTouchEvt);
+    canvas.addEventListener("touchmove", disableTouchEvt);
+
     // mouse compatibility layer
     const mouseEventWrapper = (f: WrappedFnType) => {
       return (e: MouseEvent) => {
