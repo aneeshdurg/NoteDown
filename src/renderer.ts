@@ -257,6 +257,9 @@ export class NoteDownRenderer {
 
   flip_eraser_state() {
     this.is_eraser = !this.is_eraser;
+    if (this.write_in_progress) {
+      this.onPenUp();
+    }
     if (this.on_eraser_flip) {
       this.on_eraser_flip();
     }
@@ -583,6 +586,7 @@ export class NoteDownRenderer {
   }
 
   async onPenUp() {
+    this.curr_location = null;
     if (!this.write_in_progress || !this.currentStroke) {
       return;
     }
@@ -614,7 +618,7 @@ export class NoteDownRenderer {
 
   async onPenMove(evt: DragEvent) {
     const coords = this.transformCoords(evt.end);
-    if (!this.write_in_progress) {
+    if (!this.is_eraser && !this.write_in_progress) {
       this.write_in_progress = true;
       this.currentStroke = new Stroke(coords.y - (coords.y % this.line_spacing))
       this.currentStroke.add(coords.x, coords.y);

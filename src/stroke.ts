@@ -24,12 +24,12 @@ export class Stroke {
     ctx.strokeStyle = "black";
     ctx.lineWidth = 2;
 
-    ctx.beginPath();
-    ctx.moveTo(this.x_points[0], this.y_points[0] + y_root);
     for (let i = 1; i < this.x_points.length; i++) {
+      ctx.beginPath();
+      ctx.lineTo(this.x_points[i - 1], this.y_points[i - 1] + y_root);
       ctx.lineTo(this.x_points[i], this.y_points[i] + y_root);
+      ctx.stroke();
     }
-    ctx.stroke();
   }
 
   intersects(y_root: number, p1: Point, p2: Point): boolean {
