@@ -272,14 +272,18 @@ export class Region {
       const dist = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
       const threshold = type === "touch" ? this.touchMoveThreshold : this.penMoveThreshold;
       if (details.moved || dist > threshold) {
+        let start = details.lastPos;
+        if (!details.moved) {
+          start = coords;
+        }
         details.moved = true;
         if (type == "touch") {
           if (cbs.drag) {
-            cbs.drag(new DragEvent(details.lastPos, coords));
+            cbs.drag(new DragEvent(start, coords));
           }
         } else {
           if (cbs.penDrag) {
-            cbs.penDrag(new DragEvent(details.lastPos, coords));
+            cbs.penDrag(new DragEvent(start, coords));
           }
         }
         details.lastPos = coords;

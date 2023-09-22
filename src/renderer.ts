@@ -103,11 +103,10 @@ export class NoteDownRenderer {
   wheelHandler(e: WheelEvent) {
     if (e.deltaY > 0) {
       this.scrollDown(this.scroll_delta);
-      this.clearAndRedraw();
     } else if (e.deltaY < 0) {
       this.scrollUp(this.scroll_delta);
-      this.clearAndRedraw();
     }
+    this.clearAndRedraw();
     e.preventDefault();
   }
 
@@ -120,14 +119,31 @@ export class NoteDownRenderer {
     let mode: "scroll" | "indent" = "scroll";
 
     const mainbody = new Region({ x: this.left_margin, y: 0 }, this.ctx.canvas.width - this.left_margin, this.ctx.canvas.height, 5, 0);
+    let dragLock: Promise<void> | null = null;
+    let releaseDragLock_: (() => void) | null = null;
+    const accquireDragLock = () => {
+      dragLock = new Promise(r => {
+        releaseDragLock_ = r;
+      });
+    };
+    const releaseDragLock = () => {
+      releaseDragLock_!();
+      releaseDragLock_ = null;
+      dragLock = null;
+    };
     const mainbody_readonly_cbs = {
       drag: async (evt: DragEvent) => {
+        if (dragLock) {
+          return;
+        }
+        accquireDragLock();
         if (scrollPos === null) {
           // save the position without transforming
-          scrollPos = evt.start;
+          scrollPos = evt.end;
         }
         if (mode == "scroll") {
           const deltaY = scrollPos.y - evt.end.y;
+          console.log(scrollPos.y, evt.end.y, deltaY)
           if (Math.abs(deltaY) > 10) {
             const delta = Math.abs(deltaY) / this.line_spacing;
             if (deltaY < 0) {
@@ -135,7 +151,7 @@ export class NoteDownRenderer {
             } else {
               await this.scrollDown(delta);
             }
-            this.clearAndRedraw();
+            this.clearAndRedraw(true);
             scrollPos = evt.end;
           }
         } else {
@@ -153,11 +169,19 @@ export class NoteDownRenderer {
             scrollPos = evt.end;
           }
         }
+        releaseDragLock();
       },
-      dragCancel: () => {
+      dragCancel: async () => {
+        while (dragLock) {
+          const tmpLock = dragLock;
+          await tmpLock;
+        }
+        accquireDragLock();
         scrollPos = null;
         lineToIndent = null;
         mode = "scroll";
+        this.clearAndRedraw();
+        releaseDragLock();
       },
       tap: this.onTap.bind(this),
     };
@@ -447,9 +471,12 @@ export class NoteDownRenderer {
     return { x: x, y: y };
   }
 
-  clearAndRedraw() {
+  clearAndRedraw(fastdraw: boolean = false) {
     if (this.write_in_progress && !this.is_eraser) {
       return;
+    }
+    if (!fastdraw) {
+      console.log("slowdraw");
     }
     this.clear();
     this.ctx.save();
@@ -462,7 +489,7 @@ export class NoteDownRenderer {
       }
 
       for (let i = 0; i < strokes.length; i++) {
-        strokes[i].draw(this.ctx, phys_line * this.line_spacing);
+        strokes[i].draw(this.ctx, phys_line * this.line_spacing, fastdraw);
       }
 
       if (this.hidden_roots.has(real_line)) {

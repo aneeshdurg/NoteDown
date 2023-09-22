@@ -20,15 +20,29 @@ export class Stroke {
     this.y_points.push(y - this.y_root);
   }
 
-  draw(ctx: CanvasContext, y_root: number) {
+  draw(ctx: CanvasContext, y_root: number, fastdraw: boolean = false) {
     ctx.strokeStyle = "black";
     ctx.lineWidth = 2;
 
-    for (let i = 1; i < this.x_points.length; i++) {
+    let increment = 1;
+    if (fastdraw) {
+      increment = 5;
+      console.log("fastdraw", this.x_points.length, increment);
+    }
+
+    let last_x = this.x_points[0];
+    let last_y = this.y_points[0] + y_root;
+    for (let i = 1; i < this.x_points.length; i += increment) {
+      const new_x = this.x_points[i];
+      const new_y = this.y_points[i] + y_root;
+
       ctx.beginPath();
-      ctx.lineTo(this.x_points[i - 1], this.y_points[i - 1] + y_root);
-      ctx.lineTo(this.x_points[i], this.y_points[i] + y_root);
+      ctx.moveTo(last_x, last_y);
+      ctx.lineTo(new_x, new_y);
       ctx.stroke();
+
+      last_x = new_x;
+      last_y = new_y;
     }
   }
 

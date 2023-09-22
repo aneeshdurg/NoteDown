@@ -17,6 +17,7 @@ const appShellFiles = [
 ];
 
 self.addEventListener("install", (e) => {
+  self.skipWaiting();
   console.log("[Service Worker] Install");
   e.waitUntil(
     (async () => {
