@@ -645,20 +645,20 @@ export class NoteDownRenderer {
 
   async onPenMove(evt: DragEvent) {
     const coords = this.transformCoords(evt.end);
-    if (!this.is_eraser && !this.write_in_progress) {
-      this.write_in_progress = true;
-      this.currentStroke = new Stroke(coords.y - (coords.y % this.line_spacing))
-      this.currentStroke.add(coords.x, coords.y);
+    if (!this.curr_location) {
+      if (!this.is_eraser) {
+        this.write_in_progress = true;
+        this.currentStroke = new Stroke(coords.y - (coords.y % this.line_spacing))
+        this.currentStroke.add(coords.x, coords.y);
+      }
       this.curr_location = coords;
-    }
-    if (!this.write_in_progress || !this.curr_location) {
-      return;
     }
     if (coords.x <= this.left_margin) {
       return;
     }
 
     if (this.is_eraser) {
+      console.log("erasing");
       // TODO move this to Document
       const updates = new Map<RealLineNumber, Stroke[]>;
       this.lineToRealLine.forEach((real_line, rendered_line) => {
