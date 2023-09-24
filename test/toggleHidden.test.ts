@@ -17,7 +17,7 @@ describe("Hiding lines", () => {
 
 
     const ctx = new MockCanvasContext();
-    const renderer = new NoteDownRenderer("test", false, ctx, doc, storage);
+    const renderer = new NoteDownRenderer(ctx, doc, storage);
 
     await renderer.clickHandler({ x: renderer.left_margin / 2, y: 1.5 * renderer.line_spacing });
     expect(renderer.hidden_roots).toEqual(new Set([1]));

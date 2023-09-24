@@ -30,8 +30,6 @@ export interface CanvasContext {
   save: typeof CanvasRenderingContext2D.prototype.save;
   restore: typeof CanvasRenderingContext2D.prototype.restore;
   transform: typeof CanvasRenderingContext2D.prototype.transform;
-  getImageData: typeof CanvasRenderingContext2D.prototype.getImageData;
-  putImageData: typeof CanvasRenderingContext2D.prototype.putImageData;
   canvas: typeof CanvasRenderingContext2D.prototype.canvas;
 };
 

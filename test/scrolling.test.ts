@@ -19,7 +19,7 @@ describe("Moving lines", () => {
 
 
     const ctx = new MockCanvasContext();
-    const renderer = new NoteDownRenderer("test", false, ctx, doc, storage);
+    const renderer = new NoteDownRenderer(ctx, doc, storage);
     await renderer.toggleLineHidden(2 as RenderedLineNumber);
     await renderer.toggleLineHidden(1 as RenderedLineNumber);
 
@@ -31,7 +31,7 @@ describe("Moving lines", () => {
 
     // Scroll down by two lines - everything should be hidden now
     for (let i = 0; i < (2 / (renderer.scroll_delta)); i++) {
-      await renderer.scrollDown()
+      await renderer.scrollDown(renderer.scroll_delta)
     }
     // Current rendered view is:
     //  line5
@@ -41,7 +41,7 @@ describe("Moving lines", () => {
 
     // Scroll down up one line
     for (let i = 0; i < (1 / (renderer.scroll_delta)); i++) {
-      await renderer.scrollUp()
+      await renderer.scrollUp(renderer.scroll_delta)
     }
     // Current rendered view is:
     // +line1

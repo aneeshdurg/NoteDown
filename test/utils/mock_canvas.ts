@@ -12,10 +12,10 @@ export class MockCanvas implements CanvasElement {
 export class MockCanvasContext implements CanvasContext {
   strokeStyle: any = "";
   lineWidth: any = 0;
-  canvas: CanvasElement;
+  canvas: HTMLCanvasElement;
 
   constructor() {
-    this.canvas = new MockCanvas();
+    this.canvas = new MockCanvas() as HTMLCanvasElement;
     this.canvas.width = 1000;
     this.canvas.height = 1000;
   }
