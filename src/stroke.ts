@@ -27,7 +27,6 @@ export class Stroke {
     let increment = 1;
     if (fastdraw) {
       increment = 5;
-      console.log("fastdraw", this.x_points.length, increment);
     }
 
     let last_x = this.x_points[0];

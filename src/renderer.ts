@@ -143,7 +143,6 @@ export class NoteDownRenderer {
         }
         if (mode == "scroll") {
           const deltaY = scrollPos.y - evt.end.y;
-          console.log(scrollPos.y, evt.end.y, deltaY)
           if (Math.abs(deltaY) > 10) {
             const delta = Math.abs(deltaY) / this.line_spacing;
             if (deltaY < 0) {
@@ -475,9 +474,6 @@ export class NoteDownRenderer {
     if (this.write_in_progress && !this.is_eraser) {
       return;
     }
-    if (!fastdraw) {
-      console.log("slowdraw");
-    }
     this.clear();
     this.ctx.save();
     this.ctx.transform(1, 0, 0, 1, 0, -1 * this.y_offset * this.line_spacing);
@@ -658,7 +654,6 @@ export class NoteDownRenderer {
     }
 
     if (this.is_eraser) {
-      console.log("erasing");
       // TODO move this to Document
       const updates = new Map<RealLineNumber, Stroke[]>;
       this.lineToRealLine.forEach((real_line, rendered_line) => {
@@ -711,7 +706,11 @@ export class NoteDownRenderer {
       }
 
       let final_value = this.lineToRealLine.get(this.rendered_lines - 1 as RenderedLineNumber)!;
-      final_value = final_value + 1 as RealLineNumber;
+      if (this.hidden_roots.has(final_value)) {
+        final_value = final_value + (this.doc.childLines(final_value).length + 1) as RealLineNumber;
+      } else {
+        final_value = final_value + 1 as RealLineNumber;
+      }
       this.lineToRealLine.set(this.rendered_lines - 1 as RenderedLineNumber, final_value);
       await this.save();
     }
