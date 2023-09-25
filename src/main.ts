@@ -18,7 +18,7 @@ async function setupNotebookSwitcher(current_notebook: string, storage: NoteDown
     label.classList.add("menulabel");
     label.innerText = name;
     entry.appendChild(label);
-    entry.onclick = () => {
+    entry.onclick = async () => {
       location.assign(`?notebook=${encodeURIComponent(name)}`);
     };
     return entry;
@@ -26,7 +26,6 @@ async function setupNotebookSwitcher(current_notebook: string, storage: NoteDown
   const entry = makeMenuEntry(current_notebook);
   // entry.value = encodeURIComponent(current_notebook);
   change_notebook.appendChild(entry);
-  change_notebook.appendChild(document.createElement("hr"));
   change_notebook.value = current_notebook;
   for (let name of notebooks) {
     if (name == current_notebook) {
@@ -35,7 +34,6 @@ async function setupNotebookSwitcher(current_notebook: string, storage: NoteDown
     const entry = makeMenuEntry(decodeURIComponent(name));
     // entry.value = name;
     change_notebook.appendChild(entry);
-    change_notebook.appendChild(document.createElement("hr"));
   }
 }
 
@@ -78,6 +76,42 @@ async function quickLinks(doc: NoteDownDocument, storage: NoteDownStorageManager
   modal.attach(document.body);
 }
 
+async function setupLightDarkToggle(renderer: NoteDownRenderer) {
+  const toggleLightMode = (isLight: boolean) => {
+    let currentClass = "light";
+    let targetClass = "dark";
+    if (!isLight) {
+      currentClass = "dark";
+      targetClass = "light";
+    }
+    localForage.setItem("theme", targetClass);
+    const els = document.getElementsByClassName(currentClass);
+    while (els.length) {
+      const el = els[0];
+      el.classList.remove(currentClass);
+      el.classList.add(targetClass);
+    }
+    renderer.clearAndRedraw();
+  }
+
+  GetConfig().registerModeSwitchCB(
+    toggleLightMode.bind(null, true), toggleLightMode.bind(null, false));
+  document.getElementById("EnableLightMode")!.onclick = () => {
+    GetConfig().enableLightMode();
+  }
+  document.getElementById("EnableDarkMode")!.onclick = () => {
+    GetConfig().enableDarkMode();
+  }
+
+  let defaultTheme = (await localForage.getItem("theme")) as string | undefined;
+  defaultTheme = defaultTheme || "light";
+  if (defaultTheme == "light") {
+    GetConfig().enableLightMode();
+  } else {
+    GetConfig().enableDarkMode();
+  }
+}
+
 export async function main() {
   if ("serviceWorker" in navigator) {
     console.log("registering serviceworker");
@@ -99,7 +133,15 @@ export async function main() {
 
   const queryString = window.location.search;
   const urlParams = new URLSearchParams(queryString);
-  const notebook = decodeURIComponent(urlParams.get("notebook") || "default");
+  const getLastNotebook = async () => {
+    const notebook = await localForage.getItem("lastNotebook");
+    if (notebook) {
+      return notebook as string;
+    }
+    return "default";
+  };
+  const notebook = decodeURIComponent(urlParams.get("notebook") || await getLastNotebook());
+  await localForage.setItem("lastNotebook", notebook);
   const forceCreate = urlParams.get("forcecreate") || false;
   const upgradeUI = (urlParams.get("upgradeui") || false) as boolean;
   if (forceCreate) {
@@ -126,6 +168,7 @@ export async function main() {
 
   setupNotebookCreator();
   await setupNotebookSwitcher(notebook, storage);
+  await setupLightDarkToggle(renderer);
 
   const enable_debug = urlParams.get("debug") || false;
   if (enable_debug) {
@@ -187,33 +230,6 @@ export async function main() {
   // for debugging purposes
   (window as any).notedown_ui = renderer;
   (window as any).localForage = localForage;
-
-  const toggleLightMode = (isLight: boolean) => {
-    let currentClass = "light";
-    let targetClass = "dark";
-    if (!isLight) {
-      currentClass = "dark";
-      targetClass = "light";
-    }
-    const els = document.getElementsByClassName(currentClass);
-    while (els.length) {
-      const el = els[0];
-      el.classList.remove(currentClass);
-      el.classList.add(targetClass);
-    }
-    renderer.clearAndRedraw();
-  }
-
-  GetConfig().registerModeSwitchCB(
-    toggleLightMode.bind(null, true), toggleLightMode.bind(null, false));
-  document.getElementById("EnableLightMode")!.onclick = () => {
-    GetConfig().enableLightMode();
-  }
-  document.getElementById("EnableDarkMode")!.onclick = () => {
-    GetConfig().enableDarkMode();
-  }
-  window.config = GetConfig();
-
   // const render = () => {
   //   renderer.clearAndRedraw();
   //   requestAnimationFrame(render);
