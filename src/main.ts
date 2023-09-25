@@ -142,6 +142,7 @@ export async function main() {
   };
   const notebook = decodeURIComponent(urlParams.get("notebook") || await getLastNotebook());
   await localForage.setItem("lastNotebook", notebook);
+  document.getElementById("notebookName")!.innerText = notebook;
   const forceCreate = urlParams.get("forcecreate") || false;
   const upgradeUI = (urlParams.get("upgradeui") || false) as boolean;
   if (forceCreate) {
