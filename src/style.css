@@ -12,10 +12,6 @@ body {
     justify-content: center;
 }
 
-div {
-    border-radius: 25px;
-}
-
 .notedown-container {
   width: 100%;
   overflow-x: auto;
@@ -128,4 +124,45 @@ body {
 .delline {
   padding: 0.5em;
   width: 100%;
+}
+
+.menuitem {
+  display: inline-block;
+}
+.menulabel {
+  background: #d4d4d4;
+  padding: 0.25em;
+  border-radius: 5px;
+}
+.menuitem:hover > .menulabel{
+  background: #b4b4b4;
+}
+
+.menuchild {
+  position: absolute;
+  background: #ffffff;
+  border: 1px solid;
+  width: 125px;
+  display: none;
+}
+
+.menuchild > .menuitem {
+  display: block;
+  width: 100%;
+}
+.menuchild > .menuitem > .menulabel {
+  border-radius: 0px;
+}
+
+.menuitem:hover > .menuchild {
+  display: inline-block;
+}
+
+.menuitem > .menuchild > .menuitem {
+  position: relative;
+}
+
+.menuitem > .menuchild > .menuitem > .menuchild {
+  left: 100%;
+  top: 0px;
 }

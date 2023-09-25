@@ -16,10 +16,80 @@
     <div class="box">
       <div class="row header">
         <h1>NoteDown</h1>
-        <button id="eraser" style="width: 6em;">Eraser</button>
-        <button id="create-new-notebook">New Notebook</button>
-        <select id="change-notebook"></select>
-        <button id="toc">Quick Links</button>
+        <div class="menuitem">
+          <div class="menulabel">
+            File
+          </div>
+          <div class="menuchild">
+            <div class="menuitem">
+              <div class="menulabel">
+                Open &gt;
+              </div>
+              <div class="menuchild" id="change-notebook">
+              </div>
+            </div>
+            <hr>
+            <div class="menuitem" id="create-new-notebook">
+              <div class="menulabel">
+                New
+              </div>
+            </div>
+
+          </div>
+        </div>
+        <div style="display:none;">
+          <div class="menuitem">
+            <div class="menulabel">
+              Edit
+            </div>
+            <div class="menuchild">
+              <div class="menuitem">
+                <div class="menulabel">
+                  SubMenu &gt;
+                </div>
+                <div class="menuchild">
+                  idk
+                </div>
+              </div>
+              <hr>
+              <div class="menuitem">
+                <div class="menulabel">
+                    SubMenu1 &gt;
+                </div>
+                <div class="menuchild">
+                  idk1
+                </div>
+              </div>
+              <hr>
+              <div class="menuitem">
+                <div class="menulabel">
+                  SubMenu2 &gt;
+                </div>
+                <div class="menuchild">
+                  idk2
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="menuitem">
+          <div class="menulabel">
+            Tools
+          </div>
+          <div class="menuchild">
+            <div class="menuitem">
+              <div class="menulabel" id="eraser">
+                Eraser
+              </div>
+            </div>
+            <hr>
+            <div class="menuitem" id="toc">
+              <div class="menulabel">
+                Quick Links
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
       <div class="row content">
         <div class="notedown-container">

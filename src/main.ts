@@ -10,23 +10,32 @@ import localForage from "localforage";
 async function setupNotebookSwitcher(current_notebook: string, storage: NoteDownStorageManager) {
   const change_notebook = <HTMLSelectElement>document.getElementById("change-notebook");
   const notebooks = await storage.listNotebooks();
-  const entry = document.createElement("option");
-  entry.value = encodeURIComponent(current_notebook);
-  entry.innerHTML = current_notebook;
+  const makeMenuEntry = (name: string) => {
+    const entry = document.createElement("div");
+    entry.classList.add("menuitem");
+    const label = document.createElement("div");
+    label.classList.add("menulabel");
+    label.innerText = name;
+    entry.appendChild(label);
+    entry.onclick = () => {
+      location.assign(`?notebook=${encodeURIComponent(name)}`);
+    };
+    return entry;
+  };
+  const entry = makeMenuEntry(current_notebook);
+  // entry.value = encodeURIComponent(current_notebook);
   change_notebook.appendChild(entry);
+  change_notebook.appendChild(document.createElement("hr"));
   change_notebook.value = current_notebook;
   for (let name of notebooks) {
     if (name == current_notebook) {
       continue;
     }
-    const entry = document.createElement("option");
-    entry.value = name;
-    entry.innerHTML = decodeURIComponent(name);
+    const entry = makeMenuEntry(decodeURIComponent(name));
+    // entry.value = name;
     change_notebook.appendChild(entry);
+    change_notebook.appendChild(document.createElement("hr"));
   }
-  change_notebook.onchange = () => {
-    location.assign(`?notebook=${encodeURIComponent(change_notebook.value)}`);
-  };
 }
 
 function setupNotebookCreator() {
