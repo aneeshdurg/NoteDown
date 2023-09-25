@@ -1,4 +1,5 @@
 import { CanvasContext } from './types.ts';
+import { GetConfig } from './config.ts';
 
 export interface Point {
   x: number;
@@ -21,7 +22,7 @@ export class Stroke {
   }
 
   draw(ctx: CanvasContext, y_root: number, fastdraw: boolean = false) {
-    ctx.strokeStyle = "black";
+    ctx.strokeStyle = GetConfig().strokeColor;
     ctx.lineWidth = 2;
 
     let increment = 1;

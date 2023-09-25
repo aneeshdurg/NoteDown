@@ -3,6 +3,7 @@ import { CanvasContext, RealLineNumber, RenderedLineNumber } from './types.ts';
 import { NoteDownDocument } from './document.ts';
 import { NoteDownStorageManager } from './storage_manager.ts';
 import { Modal } from './modal.ts';
+import { GetConfig } from './config.ts';
 
 import { DragEvent, Region } from './event_manager.ts';
 
@@ -336,7 +337,7 @@ export class NoteDownRenderer {
 
     this.clearAndRedraw();
     this.ctx.beginPath();
-    this.ctx.strokeStyle = "black";
+    this.ctx.strokeStyle = GetConfig().strokeColor;
     this.ctx.lineWidth = 5;
     this.ctx.moveTo(this.left_margin + 30, end.y);
     this.ctx.lineTo(this.left_margin + 75, end.y);
@@ -436,7 +437,7 @@ export class NoteDownRenderer {
 
   // Draw ruled layout
   draw_layout() {
-    this.ctx.strokeStyle = "black";
+    this.ctx.strokeStyle = GetConfig().strokeColor;
     this.ctx.lineWidth = 1;
 
     for (let i = 0; i < this.rendered_lines; i++) {
@@ -489,7 +490,7 @@ export class NoteDownRenderer {
       }
 
       if (this.hidden_roots.has(real_line)) {
-        this.ctx.strokeStyle = "black";
+        this.ctx.strokeStyle = GetConfig().strokeColor;
         this.ctx.lineWidth = 5;
 
         const plus_width = this.left_margin / 2;
@@ -677,7 +678,7 @@ export class NoteDownRenderer {
 
       this.clearAndRedraw();
     } else {
-      this.ctx.strokeStyle = "black";
+      this.ctx.strokeStyle = GetConfig().strokeColor;
       this.ctx.lineWidth = 2;
 
       this.ctx.save();

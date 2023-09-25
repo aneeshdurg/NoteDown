@@ -4,6 +4,7 @@ import { NoteDownStorageManager } from './storage_manager.ts';
 import { LocalStorageManager } from './local_storage_manager.ts';
 import { RealLineNumber } from './types.ts';
 import { Modal, modalAlert, modalPrompt } from './modal.ts';
+import { GetConfig } from './config.ts';
 
 import localForage from "localforage";
 
@@ -186,6 +187,32 @@ export async function main() {
   // for debugging purposes
   (window as any).notedown_ui = renderer;
   (window as any).localForage = localForage;
+
+  const toggleLightMode = (isLight: boolean) => {
+    let currentClass = "light";
+    let targetClass = "dark";
+    if (!isLight) {
+      currentClass = "dark";
+      targetClass = "light";
+    }
+    const els = document.getElementsByClassName(currentClass);
+    while (els.length) {
+      const el = els[0];
+      el.classList.remove(currentClass);
+      el.classList.add(targetClass);
+    }
+    renderer.clearAndRedraw();
+  }
+
+  GetConfig().registerModeSwitchCB(
+    toggleLightMode.bind(null, true), toggleLightMode.bind(null, false));
+  document.getElementById("EnableLightMode")!.onclick = () => {
+    GetConfig().enableLightMode();
+  }
+  document.getElementById("EnableDarkMode")!.onclick = () => {
+    GetConfig().enableDarkMode();
+  }
+  window.config = GetConfig();
 
   // const render = () => {
   //   renderer.clearAndRedraw();

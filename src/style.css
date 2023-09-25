@@ -4,6 +4,24 @@ body {
     touch-action: pan-x;
 }
 
+body.light {
+  background: white;
+}
+
+body.dark {
+  background: black;
+}
+
+h1.light {
+  color: black;
+}
+
+h1.dark {
+  color: white;
+}
+
+
+
 .display-container {
     width: 100%;
     /*text-align: center;*/
@@ -24,9 +42,16 @@ body {
 
 canvas {
     height: 100%;
-    border: solid 1px;
     border-radius: 25px;
     touch-action: pan-x;
+}
+
+canvas.light {
+    border: solid 1px;
+}
+
+canvas.dark {
+    border: solid 1px white;
 }
 
 html,
