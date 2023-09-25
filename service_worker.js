@@ -1,4 +1,4 @@
-const cacheName = "notedownPWA-v0.0.4";
+const cacheName = "notedownPWA-v0.0.5";
 const appShellFiles = [
   "/NoteDown/",
   "/NoteDown/index.html",
