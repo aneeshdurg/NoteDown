@@ -112,6 +112,66 @@ async function setupLightDarkToggle(renderer: NoteDownRenderer) {
   }
 }
 
+function setupSaveLoad(
+  notebook: string,
+  storage: LocalStorageManager,
+  renderer: NoteDownRenderer
+) {
+  const download = <HTMLElement>document.getElementById("save_doc");
+  download.onclick = async () => {
+    const blob = await storage.dumpNoteBookData();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${encodeURIComponent(notebook)}.json`;
+    a.textContent = `Download ${encodeURIComponent(notebook)}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  };
+
+  const upload = <HTMLElement>document.getElementById("load_doc");
+  upload.onclick = () => {
+    const modal = new Modal("Load File");
+
+    const fileinput = document.createElement("input");
+    fileinput.type = "file";
+    fileinput.innerText = "load";
+    fileinput.addEventListener("change", (e) => {
+      // getting a hold of the file reference
+      const file = (e.target as any).files[0] as Blob;
+
+      // setting up the reader
+      const reader = new FileReader();
+      reader.readAsText(file, 'UTF-8');
+
+      // here we tell the reader what to do when it's done reading...
+      reader.onload = async (readerEvent) => {
+        const content = readerEvent.target!.result as string; // this is the content!
+        const data = JSON.parse(content);
+        await storage.loadNoteBookData(data);
+        await renderer.save();
+        await renderer.load(false);
+        renderer.clearAndRedraw();
+        modal.close_container();
+      };
+    });
+    modal.appendChild(fileinput);
+    modal.appendChild(document.createElement("br"));
+    modal.appendChild(document.createElement("br"));
+
+    const cancel = document.createElement("button");
+    cancel.classList.add("modalalert-cancel");
+    cancel.innerText = "cancel";
+    cancel.onclick = () => {
+      modal.close_container();
+    }
+    cancel.style.marginLeft = "25%";
+    modal.appendChild(cancel);
+    modal.attach(document.body);
+  };
+}
+
 export async function main() {
   if ("serviceWorker" in navigator) {
     console.log("registering serviceworker");
@@ -170,23 +230,12 @@ export async function main() {
   setupNotebookCreator();
   await setupNotebookSwitcher(notebook, storage);
   await setupLightDarkToggle(renderer);
+  setupSaveLoad(notebook, storage, renderer);
 
   const enable_debug = urlParams.get("debug") || false;
   if (enable_debug) {
     const debug_controls = <HTMLElement>document.getElementById("debug");
     debug_controls.style.display = "";
-    const download = <HTMLElement>document.getElementById("download");
-    download.onclick = async () => {
-      const blob = await storage.dumpNoteBookData();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${encodeURIComponent(notebook)}.json`;
-      a.textContent = `Download ${encodeURIComponent(notebook)}.json`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-    };
 
     const load = <HTMLInputElement>document.getElementById("load");
     load.addEventListener("change", (e) => {

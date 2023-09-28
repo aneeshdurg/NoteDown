@@ -119,10 +119,10 @@ export class LocalStorageManager implements NoteDownStorageManager {
   }
 
   async loadNoteBookData(obj: any) {
-    await this.setActiveNotebook(obj["name"])
     await this.initializeNotebook();
 
     this.saved_lines = new Set(obj["saved-lines"])
+    await this.store.setItem("saved_lines", this.saved_lines);
     for (let line of this.saved_lines) {
       const line_data = obj["line-save-data"][line];
       await this.store.setItem(`content-strokes-line${line}`, line_data.strokes);
