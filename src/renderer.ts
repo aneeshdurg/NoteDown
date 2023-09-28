@@ -184,6 +184,7 @@ export class NoteDownRenderer {
         releaseDragLock();
       },
       tap: this.onTap.bind(this),
+      penTap: this.onTap.bind(this),
     };
     mainbody.registerRegion(this.ctx.canvas as HTMLCanvasElement, mainbody_readonly_cbs);
 
@@ -389,7 +390,7 @@ export class NoteDownRenderer {
         x = x - num_shift as RealLineNumber;
       }
       // Next account for the shift after reinserting the lines
-      if (x > (real_line_dst - num_shift)) {
+      if (x >= (real_line_dst - num_shift)) {
         x = x + num_shift as RealLineNumber;
       }
       return x;
