@@ -24,27 +24,41 @@ export class NoteDownDocument {
     }
   }
 
-  async indent(line: RealLineNumber, direction: 1 | -1, indent_children: boolean, storage: NoteDownStorageManager) {
+  async indent(line: RealLineNumber, direction: 1 | -1, indent_children: boolean, storage: NoteDownStorageManager, width: number = -1) {
     if (this.linesToStrokes.get(line) === undefined) {
       return;
     }
 
+    if (width === -1) {
+      width = this.indentWidth;
+      const firstContent = this.linesTofirstContent.get(line)!;
+      const rem = firstContent % this.indentWidth;
+      if (rem != 0) {
+        if (direction == -1) {
+          width = rem;
+        } else {
+          width = this.indentWidth - rem;
+        }
+      }
+
+      console.log("Width", width);
+    }
     const strokes = this.linesToStrokes.get(line)!;
     for (let i = 0; i < strokes.length; i++) {
       const stroke = strokes[i];
       for (let j = 0; j < stroke.x_points.length; j++) {
-        stroke.x_points[j] += direction * this.indentWidth;
+        stroke.x_points[j] += direction * width;
       }
     }
     this.linesTofirstContent.set(line,
-      this.linesTofirstContent.get(line)! + direction * this.indentWidth);
+      this.linesTofirstContent.get(line)! + direction * width);
 
     const promises: Promise<void>[] = [];
     promises.push(this.saveToStorage(line, storage));
 
     if (indent_children) {
       for (let child of this.childLines(line)) {
-        promises.push(this.indent(child, direction, false, storage));
+        promises.push(this.indent(child, direction, false, storage, width));
       }
     }
 
