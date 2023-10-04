@@ -226,16 +226,23 @@ export class NoteDownRenderer {
           del.innerText = "delete";
           del.classList.add("delline");
 
+          const duplicate = document.createElement("button");
+          duplicate.innerText = "duplicate";
+          duplicate.classList.add("delline");
+
           modal.appendChild(add);
           modal.appendChild(addlinecount);
           modal.appendChild(document.createElement("br"));
           modal.appendChild(document.createElement("br"));
           modal.appendChild(del);
+          modal.appendChild(document.createElement("br"));
+          modal.appendChild(document.createElement("br"));
+          modal.appendChild(duplicate);
           modal.attach(document.body);
 
-          add.onclick = async () => {
+          const do_add = async (num_lines: number) => {
             modal.close_container();
-            const lines = Math.floor(Number(addlinecount.value));
+            const lines = num_lines;
             await this.doc.insertLines(real_line, lines, this.storage);
             const new_hidden_roots = new Set<RealLineNumber>();
             this.hidden_roots.forEach((root) => {
@@ -250,6 +257,10 @@ export class NoteDownRenderer {
             this.infer_line_mapping();
             this.clearAndRedraw();
             this.save();
+          };
+
+          add.onclick = async () => {
+            await do_add(Math.floor(Number(addlinecount.value)));
           };
           del.onclick = () => {
             modal.close_container();
@@ -269,6 +280,13 @@ export class NoteDownRenderer {
             this.hidden_roots = new_hidden_roots;
 
             this.infer_line_mapping();
+            this.clearAndRedraw();
+            this.save();
+          };
+
+          duplicate.onclick = async () => {
+            await do_add(1);
+            await this.doc.copyLine(this.storage, real_line + 1 as RealLineNumber, real_line);
             this.clearAndRedraw();
             this.save();
           };

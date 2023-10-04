@@ -16,6 +16,14 @@ export class Stroke {
     this.y_root = y_root;
   }
 
+  copy(): Stroke {
+    const s = new Stroke(this.y_root);
+    for (let i = 0; i < this.x_points.length; i++) {
+      s.add(this.x_points[i], this.y_points[i] + this.y_root);
+    }
+    return s;
+  }
+
   add(x: number, y: number) {
     this.x_points.push(x);
     this.y_points.push(y - this.y_root);

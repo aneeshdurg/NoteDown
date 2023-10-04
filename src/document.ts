@@ -254,4 +254,13 @@ export class NoteDownDocument {
     console.log(this.linesTofirstContent);
     return { doc: doc, mapping: mapping };
   }
+
+  async copyLine(storage: NoteDownStorageManager, src: RealLineNumber, dst: RealLineNumber) {
+    const firstContent = this.linesTofirstContent.get(src)!;
+    const strokes = this.linesToStrokes.get(src)!.map(x => x.copy());
+
+    this.linesTofirstContent.set(dst, firstContent);
+    this.linesToStrokes.set(dst, strokes);
+    await this.saveToStorage(dst, storage);
+  }
 }
