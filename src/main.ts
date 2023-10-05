@@ -2,7 +2,7 @@ import { NoteDownDocument } from './document.ts';
 import { NoteDownRenderer } from './renderer.ts';
 import { NoteDownStorageManager } from './storage_manager.ts';
 import { LocalStorageManager } from './local_storage_manager.ts';
-import { RealLineNumber } from './types.ts';
+import { RealLineNumber, RenderedLineNumber } from './types.ts';
 import { Modal, modalAlert, modalPrompt } from './modal.ts';
 import { GetConfig } from './config.ts';
 
@@ -172,6 +172,55 @@ function setupSaveLoad(
   };
 }
 
+function onLineSelect(renderer: NoteDownRenderer, line: RealLineNumber) {
+  navigator.vibrate([100]);
+  const modal = new Modal("Add/Delete lines");
+  const add = document.createElement("button");
+  add.innerText = "add";
+  add.classList.add("addline");
+  add.innerText = "add";
+  const addlinecount = document.createElement("input");
+  addlinecount.type = "number";
+  addlinecount.value = "1";
+  addlinecount.classList.add("addlinecount");
+  const del = document.createElement("button");
+  del.innerText = "delete";
+  del.classList.add("delline");
+
+  const duplicate = document.createElement("button");
+  duplicate.innerText = "duplicate";
+  duplicate.classList.add("delline");
+
+  modal.appendChild(add);
+  modal.appendChild(addlinecount);
+  modal.appendChild(document.createElement("br"));
+  modal.appendChild(document.createElement("br"));
+  modal.appendChild(del);
+  modal.appendChild(document.createElement("br"));
+  modal.appendChild(document.createElement("br"));
+  modal.appendChild(duplicate);
+  modal.attach(document.body);
+
+  const finish = () => {
+    modal.close_container();
+  };
+
+  add.onclick = async () => {
+    await renderer.add_line(line, Math.floor(Number(addlinecount.value)));
+    finish();
+  };
+
+  del.onclick = () => {
+    renderer.delete_lines(line, 1);
+    finish();
+  };
+
+  duplicate.onclick = async () => {
+    await renderer.duplicate_line(line);
+    finish();
+  };
+}
+
 export async function main() {
   if ("serviceWorker" in navigator) {
     console.log("registering serviceworker");
@@ -225,6 +274,7 @@ export async function main() {
     await renderer.save();
     await storage.initializeNotebook();
   }
+  renderer.on_line_select = onLineSelect.bind(null, renderer);
   renderer.installEventHandlers();
 
   setupNotebookCreator();

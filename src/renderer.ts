@@ -2,7 +2,6 @@ import { Point, Stroke } from './stroke.ts';
 import { CanvasContext, RealLineNumber, RenderedLineNumber } from './types.ts';
 import { NoteDownDocument } from './document.ts';
 import { NoteDownStorageManager } from './storage_manager.ts';
-import { Modal } from './modal.ts';
 import { GetConfig } from './config.ts';
 
 import { DragEvent, Region } from './event_manager.ts';
@@ -38,6 +37,7 @@ export class NoteDownRenderer {
   on_eraser_flip: (() => void) | null = null;
   on_line_tap: ((line_no: RealLineNumber) => void) | null = null;
   on_redraw: ((ctx: CanvasContext) => void) | null = null;
+  on_line_select: (((line_no: RealLineNumber) => void) | null) = null;
   readonly = false;
 
   constructor(
@@ -209,51 +209,13 @@ export class NoteDownRenderer {
         dragCancel: this.moveCancel.bind(this),
         tap: (pt: Point) => console.log("TAP", pt),
         longPress: (pt: Point) => {
-          const coords = this.transformCoords(pt);
-          const curr_line = Math.floor(coords.y / this.line_spacing) as RenderedLineNumber;
-          const real_line = this.lineToRealLine.get(curr_line)!;
-          navigator.vibrate([100]);
-          const modal = new Modal("Add/Delete lines");
-          const add = document.createElement("button");
-          add.innerText = "add";
-          add.classList.add("addline");
-          add.innerText = "add";
-          const addlinecount = document.createElement("input");
-          addlinecount.type = "number";
-          addlinecount.value = "1";
-          addlinecount.classList.add("addlinecount");
-          const del = document.createElement("button");
-          del.innerText = "delete";
-          del.classList.add("delline");
-
-          const duplicate = document.createElement("button");
-          duplicate.innerText = "duplicate";
-          duplicate.classList.add("delline");
-
-          modal.appendChild(add);
-          modal.appendChild(addlinecount);
-          modal.appendChild(document.createElement("br"));
-          modal.appendChild(document.createElement("br"));
-          modal.appendChild(del);
-          modal.appendChild(document.createElement("br"));
-          modal.appendChild(document.createElement("br"));
-          modal.appendChild(duplicate);
-          modal.attach(document.body);
-
-          add.onclick = async () => {
-            modal.close_container();
-            await this.add_line(real_line, Math.floor(Number(addlinecount.value)));
-          };
-          del.onclick = () => {
-            modal.close_container();
-            this.delete_lines(real_line, 1);
-          };
-
-          duplicate.onclick = async () => {
-            modal.close_container();
-            await this.duplicate_line(real_line);
-          };
-          return true;
+          if (this.on_line_select) {
+            const coords = this.transformCoords(pt);
+            const curr_line = Math.floor(coords.y / this.line_spacing) as RenderedLineNumber;
+            const real_line = this.lineToRealLine.get(curr_line)!;
+            this.on_line_select(real_line);
+            return true;
+          }
         },
         penTap: this.clickHandler.bind(this),
       };
