@@ -240,55 +240,18 @@ export class NoteDownRenderer {
           modal.appendChild(duplicate);
           modal.attach(document.body);
 
-          const do_add = async (num_lines: number) => {
-            modal.close_container();
-            const lines = num_lines;
-            await this.doc.insertLines(real_line, lines, this.storage);
-            const new_hidden_roots = new Set<RealLineNumber>();
-            this.hidden_roots.forEach((root) => {
-              if (root >= real_line) {
-                new_hidden_roots.add(root + lines as RealLineNumber);
-              } else {
-                new_hidden_roots.add(root);
-              }
-            });
-            this.hidden_roots = new_hidden_roots;
-
-            this.infer_line_mapping();
-            this.clearAndRedraw();
-            this.save();
-          };
-
           add.onclick = async () => {
-            await do_add(Math.floor(Number(addlinecount.value)));
+            modal.close_container();
+            await this.add_line(real_line, Math.floor(Number(addlinecount.value)));
           };
           del.onclick = () => {
             modal.close_container();
-            let count = 1;
-            if (this.hidden_roots.has(real_line)) {
-              count += this.doc.childLines(real_line).length;
-            }
-            this.doc.deleteLines(real_line, count, this.storage);
-            const new_hidden_roots = new Set<RealLineNumber>();
-            this.hidden_roots.forEach((root) => {
-              if (root > (real_line + count)) {
-                new_hidden_roots.add(root - count as RealLineNumber);
-              } else if (root < real_line) {
-                new_hidden_roots.add(root);
-              }
-            });
-            this.hidden_roots = new_hidden_roots;
-
-            this.infer_line_mapping();
-            this.clearAndRedraw();
-            this.save();
+            this.delete_lines(real_line, 1);
           };
 
           duplicate.onclick = async () => {
-            await do_add(1);
-            await this.doc.copyLine(this.storage, real_line + 1 as RealLineNumber, real_line);
-            this.clearAndRedraw();
-            this.save();
+            modal.close_container();
+            await this.duplicate_line(real_line);
           };
           return true;
         },
@@ -296,6 +259,51 @@ export class NoteDownRenderer {
       };
       margin.registerRegion(this.ctx.canvas as HTMLCanvasElement, margin_cbs as any);
     }
+  }
+
+  async delete_lines(line: RealLineNumber, count: number) {
+    if (this.hidden_roots.has(line)) {
+      count += this.doc.childLines(line).length;
+    }
+    this.doc.deleteLines(line, count, this.storage);
+    const new_hidden_roots = new Set<RealLineNumber>();
+    this.hidden_roots.forEach((root) => {
+      if (root > (line + count)) {
+        new_hidden_roots.add(root - count as RealLineNumber);
+      } else if (root < line) {
+        new_hidden_roots.add(root);
+      }
+    });
+    this.hidden_roots = new_hidden_roots;
+
+    this.infer_line_mapping();
+    this.clearAndRedraw();
+    this.save();
+  }
+
+  async add_line(curr_line: RealLineNumber, num_lines: number) {
+    const lines = num_lines;
+    await this.doc.insertLines(curr_line, lines, this.storage);
+    const new_hidden_roots = new Set<RealLineNumber>();
+    this.hidden_roots.forEach((root) => {
+      if (root >= curr_line) {
+        new_hidden_roots.add(root + lines as RealLineNumber);
+      } else {
+        new_hidden_roots.add(root);
+      }
+    });
+    this.hidden_roots = new_hidden_roots;
+
+    this.infer_line_mapping();
+    this.clearAndRedraw();
+    this.save();
+  }
+
+  async duplicate_line(line: RealLineNumber) {
+    await this.add_line(line, 1);
+    await this.doc.copyLine(this.storage, line + 1 as RealLineNumber, line);
+    this.clearAndRedraw();
+    this.save();
   }
 
   flip_eraser_state() {
