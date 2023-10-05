@@ -2,14 +2,16 @@ import { NoteDownDocument } from './document.ts';
 import { NoteDownRenderer } from './renderer.ts';
 import { NoteDownStorageManager } from './storage_manager.ts';
 import { LocalStorageManager } from './local_storage_manager.ts';
-import { RealLineNumber, RenderedLineNumber } from './types.ts';
-import { Modal, modalAlert, modalPrompt } from './modal.ts';
+import { RealLineNumber } from './types.ts';
+import { Modal, modalAlert, modalPrompt, modalConfirm } from './modal.ts';
 import { GetConfig } from './config.ts';
 
 import localForage from "localforage";
 
 async function setupNotebookSwitcher(current_notebook: string, storage: NoteDownStorageManager) {
   const change_notebook = <HTMLSelectElement>document.getElementById("change-notebook");
+  change_notebook.innerHTML = "";
+
   const notebooks = await storage.listNotebooks();
   const makeMenuEntry = (name: string) => {
     const entry = document.createElement("div");
@@ -55,6 +57,96 @@ function setupNotebookCreator() {
       }
       break;
     }
+  };
+}
+
+function setupNotebookManager(curr_notebook: string, storage: NoteDownStorageManager) {
+  const manage_notebooks = <HTMLElement>document.getElementById("manage-notebooks");
+  manage_notebooks.onclick = async () => {
+    const modal = new Modal("Manage Notebooks");
+
+    const container = document.createElement("div");
+    // TODO - move to style.css
+    container.style.position = "inherit";
+    container.style.height = "80%";
+    container.style.overflow = "auto";
+
+    const elements = new Map<string, HTMLElement>();
+
+    const searchbar = document.createElement("input");
+    // TODO - move to style.css
+    searchbar.style.width = "95%";
+    searchbar.style.height = "2em";
+    searchbar.style.borderRadius = "10px";
+    searchbar.placeholder = "Search";
+    searchbar.onkeyup = () => {
+      for (let kv of elements) {
+        if (!kv[0].startsWith(searchbar.value)) {
+          kv[1].style.display = "none";
+        } else {
+          kv[1].style.display = "";
+        }
+      }
+    };
+    container.appendChild(searchbar);
+    container.appendChild(document.createElement("br"));
+
+    const notebooks = await storage.listNotebooks();
+
+    const light_dark_class = GetConfig().currentModeIsLight ? "light" : "dark";
+    for (let notebook of notebooks) {
+      const entry = document.createElement("div");
+
+      const heading = document.createElement("h2");
+      heading.classList.add(light_dark_class);
+      heading.innerText = notebook;
+      entry.appendChild(heading);
+
+      const open_notebook = document.createElement("button");
+      open_notebook.innerText = "Open";
+      open_notebook.classList.add("modalalert-ok");
+      // Override style defaults for "modalalert-ok"
+      open_notebook.style.float = "none";
+      open_notebook.style.marginTop = "0";
+      open_notebook.onclick = () => {
+        location.assign(`?notebook=${encodeURIComponent(notebook)}`);
+      };
+      entry.appendChild(open_notebook);
+      entry.appendChild(document.createElement("br"));
+
+      const delete_notebook = document.createElement("button");
+      delete_notebook.innerText = "Delete?";
+      delete_notebook.classList.add("modalalert-cancel");
+      // Override style defaults for "modalalert-cancel"
+      delete_notebook.style.float = "none";
+      delete_notebook.style.marginTop = "0";
+      if (notebook === curr_notebook) {
+        delete_notebook.disabled = true;
+      }
+      entry.appendChild(delete_notebook);
+
+      entry.appendChild(document.createElement("br"));
+      entry.appendChild(document.createElement("br"));
+
+      delete_notebook.onclick = async () => {
+        const confirm_delete = await modalConfirm(`Delete ${notebook}?`);
+        if (confirm_delete) {
+          await storage.deleteNotebook(notebook);
+          await setupNotebookSwitcher(curr_notebook, storage);
+        }
+        modal.close_container();
+        await new Promise(r => {
+          setTimeout(r, 0);
+        });
+        manage_notebooks.click();
+      };
+
+      elements.set(notebook, entry);
+      container.appendChild(entry);
+    }
+    modal.appendChild(container);
+
+    modal.attach(document.body);
   };
 }
 
@@ -252,15 +344,7 @@ export async function main() {
   const notebook = decodeURIComponent(urlParams.get("notebook") || await getLastNotebook());
   await localForage.setItem("lastNotebook", notebook);
   document.getElementById("notebookName")!.innerText = notebook;
-  const forceCreate = urlParams.get("forcecreate") || false;
   const upgradeUI = (urlParams.get("upgradeui") || false) as boolean;
-  if (forceCreate) {
-    try {
-      localForage.dropInstance({ name: notebook });
-    } catch (e) {
-      console.log(e);
-    }
-  }
 
   const storage = new LocalStorageManager();
   const doc = new NoteDownDocument();
@@ -278,6 +362,7 @@ export async function main() {
   renderer.installEventHandlers();
 
   setupNotebookCreator();
+  setupNotebookManager(notebook, storage);
   await setupNotebookSwitcher(notebook, storage);
   await setupLightDarkToggle(renderer);
   setupSaveLoad(notebook, storage, renderer);

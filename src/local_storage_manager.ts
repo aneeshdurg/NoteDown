@@ -33,11 +33,13 @@ export class LocalStorageManager implements NoteDownStorageManager {
     await this.store.setItem("saved_lines", this.saved_lines);
     this.known_notebooks.add(notebook);
 
-    const notebooks: string[] = [];
-    for (let notebook of this.known_notebooks) {
-      notebooks.push(notebook);
-    }
-    await localForage.setItem("notebooks", notebooks);
+    await this.saveKnownNotebooks();
+  }
+
+  async deleteNotebook(name: string) {
+    await localForage.dropInstance({ name: name });
+    this.known_notebooks.delete(name);
+    await this.saveKnownNotebooks();
   }
 
   async notebookIsInitialized(): Promise<boolean> {
@@ -129,5 +131,13 @@ export class LocalStorageManager implements NoteDownStorageManager {
       await this.store.setItem(`content-firstContent-line${line}`, line_data.firstContent);
     }
     await this.saveLastLine(obj["lastline"]);
+  }
+
+  async saveKnownNotebooks() {
+    const notebooks: string[] = [];
+    for (let notebook of this.known_notebooks) {
+      notebooks.push(notebook);
+    }
+    await localForage.setItem("notebooks", notebooks);
   }
 }

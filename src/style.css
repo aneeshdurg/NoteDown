@@ -20,6 +20,14 @@ h1.dark {
   color: white;
 }
 
+h2.light {
+  color: black;
+}
+
+h2.dark {
+  color: white;
+}
+
 
 
 .display-container {

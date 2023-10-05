@@ -26,6 +26,10 @@ export class MockStorageManager implements NoteDownStorageManager {
     }
   }
 
+  async deleteNotebook(name: string) {
+    this.storage.delete(name);
+  }
+
   async notebookIsInitialized(): Promise<boolean> {
     return this.storage.get(this.active_notebook!)!.get("initialized");
   }

@@ -5,6 +5,7 @@ export type LineSaveData = { strokes: Stroke[] | null, firstContent: number | nu
 export interface NoteDownStorageManager {
   listNotebooks: () => Promise<string[]>;
   setActiveNotebook: (notebook: string) => Promise<void>;
+  deleteNotebook: (name: string) => Promise<void>;
 
   notebookIsInitialized: () => Promise<boolean>;
   initializeNotebook: () => Promise<void>;

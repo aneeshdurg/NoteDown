@@ -4,6 +4,7 @@ export class Modal {
   container: HTMLElement;
   dialog: HTMLElement;
   on_close: (() => void) | null = null;
+  on_blur: (() => void) | null = null;
 
   constructor(title: string) {
     const modal_container = document.createElement("div");
@@ -23,7 +24,12 @@ export class Modal {
     modal_dialog.classList.add(themeClass);
     title_el.classList.add(themeClass);
 
-    modal_container.onclick = this.close_container.bind(this);
+    modal_container.onclick = () => {
+      if (this.on_blur) {
+        this.on_blur();
+      }
+      this.close_container();
+    }
     modal_dialog.onclick = (e) => {
       e.stopPropagation();
     };
@@ -76,6 +82,10 @@ export function modalAlert(msg: string): Modal {
 export function modalPrompt(msg: string): Promise<string | null> {
   return new Promise<string | null>((r) => {
     const modal = new Modal(msg);
+    modal.on_blur = () => {
+      r(null);
+    };
+
     const input = document.createElement("input");
     input.classList.add("modalprompt-input");
     modal.appendChild(input);
@@ -102,6 +112,33 @@ export function modalPrompt(msg: string): Promise<string | null> {
         ok.click();
       }
     });
+    modal.attach(document.body);
+  });
+}
+
+export function modalConfirm(msg: string): Promise<boolean> {
+  return new Promise<boolean>((r) => {
+    const modal = new Modal(msg);
+    modal.on_blur = () => {
+      r(false);
+    };
+
+    const ok = document.createElement("button");
+    ok.classList.add("modalalert-ok");
+    ok.innerText = "ok";
+    ok.onclick = () => {
+      modal.close_container();
+      r(true);
+    };
+    modal.appendChild(ok);
+    const cancel = document.createElement("button");
+    cancel.classList.add("modalalert-cancel");
+    cancel.innerText = "cancel";
+    cancel.onclick = () => {
+      modal.close_container();
+      r(false);
+    }
+    modal.appendChild(cancel);
     modal.attach(document.body);
   });
 }
