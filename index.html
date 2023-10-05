@@ -11,21 +11,30 @@
       import {main} from "./src/main.ts";
       document.addEventListener("DOMContentLoaded", main);
     </script>
+    <style id="style-dark">
+      @import url("./src/style-dark.css")
+    </style>
+    <style id="style-light">
+      @import url("./src/style-light.css")
+    </style>
+    <style id="style-current">
+      @import url("./src/style-light.css")
+    </style>
   </head>
-  <body class="light">
+  <body>
     <div class="box">
       <div class="row header">
-        <h1 class="light">NoteDown - <span id="notebookName">default</span></h1>
+        <h1>NoteDown - <span id="notebookName">default</span></h1>
         <div class="menuitem">
           <div class="menulabel">
             File
           </div>
-          <div class="menuchild light">
+          <div class="menuchild">
             <div class="menuitem">
               <div class="menulabel">
                 Open &gt;
               </div>
-              <div class="menuchild light" id="change-notebook">
+              <div class="menuchild" id="change-notebook">
               </div>
             </div>
             <div class="menuitem" id="create-new-notebook">
@@ -45,12 +54,12 @@
             <div class="menulabel">
               Edit
             </div>
-            <div class="menuchild light">
+            <div class="menuchild">
               <div class="menuitem">
                 <div class="menulabel">
                   SubMenu &gt;
                 </div>
-                <div class="menuchild light">
+                <div class="menuchild">
                   idk
                 </div>
               </div>
@@ -58,7 +67,7 @@
                 <div class="menulabel">
                     SubMenu1 &gt;
                 </div>
-                <div class="menuchild light">
+                <div class="menuchild">
                   idk1
                 </div>
               </div>
@@ -66,7 +75,7 @@
                 <div class="menulabel">
                   SubMenu2 &gt;
                 </div>
-                <div class="menuchild light">
+                <div class="menuchild">
                   idk2
                 </div>
               </div>
@@ -77,7 +86,7 @@
           <div class="menulabel">
             Tools
           </div>
-          <div class="menuchild light">
+          <div class="menuchild">
             <div class="menuitem">
               <div class="menulabel" id="eraser">
                 Eraser
@@ -94,12 +103,12 @@
           <div class="menulabel">
             View
           </div>
-          <div class="menuchild light">
+          <div class="menuchild">
             <div class="menuitem">
               <div class="menulabel" id="lightdark">
                 Theme &gt;
               </div>
-              <div class="menuchild light">
+              <div class="menuchild">
                 <div class="menuitem">
                   <div class="menulabel" id="EnableLightMode">
                     Light
@@ -118,7 +127,7 @@
           <div class="menulabel">
             Export
           </div>
-          <div class="menuchild light">
+          <div class="menuchild">
             <div class="menuitem">
               <div class="menulabel" id="save_doc">
                 Save
@@ -134,7 +143,7 @@
       </div>
       <div class="row content">
         <div class="notedown-container">
-          <canvas id="mycanvas" class="light"></canvas>
+          <canvas id="mycanvas"></canvas>
         </div>
       </div>
       <div class="row footer">

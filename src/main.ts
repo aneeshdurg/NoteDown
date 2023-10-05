@@ -93,12 +93,10 @@ function setupNotebookManager(curr_notebook: string, storage: NoteDownStorageMan
 
     const notebooks = await storage.listNotebooks();
 
-    const light_dark_class = GetConfig().currentModeIsLight ? "light" : "dark";
     for (let notebook of notebooks) {
       const entry = document.createElement("div");
 
       const heading = document.createElement("h2");
-      heading.classList.add(light_dark_class);
       heading.innerText = notebook;
       entry.appendChild(heading);
 
@@ -169,20 +167,12 @@ async function quickLinks(doc: NoteDownDocument, storage: NoteDownStorageManager
 }
 
 async function setupLightDarkToggle(renderer: NoteDownRenderer) {
-  const toggleLightMode = (isLight: boolean) => {
-    let currentClass = "light";
-    let targetClass = "dark";
-    if (!isLight) {
-      currentClass = "dark";
-      targetClass = "light";
-    }
-    localForage.setItem("theme", targetClass);
-    const els = document.getElementsByClassName(currentClass);
-    while (els.length) {
-      const el = els[0];
-      el.classList.remove(currentClass);
-      el.classList.add(targetClass);
-    }
+  const styleDark = document.getElementById("style-dark")!.innerText;
+  const styleLight = document.getElementById("style-light")!.innerText;
+  const styleCurrent = document.getElementById("style-current")!;
+  const toggleLightMode = (isDark: boolean) => {
+    localForage.setItem("theme", isDark ? "dark" : "light");
+    styleCurrent.innerText = isDark ? styleDark : styleLight;
     renderer.clearAndRedraw();
   }
 

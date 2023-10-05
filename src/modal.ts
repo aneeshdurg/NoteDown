@@ -1,5 +1,3 @@
-import { GetConfig } from './config.ts';
-
 export class Modal {
   container: HTMLElement;
   dialog: HTMLElement;
@@ -16,13 +14,6 @@ export class Modal {
     const title_el = document.createElement("h1");
     title_el.innerText = title;
     modal_dialog.appendChild(title_el);
-
-    let themeClass = "light";
-    if (!GetConfig().currentModeIsLight) {
-      themeClass = "dark";
-    }
-    modal_dialog.classList.add(themeClass);
-    title_el.classList.add(themeClass);
 
     modal_container.onclick = () => {
       if (this.on_blur) {

@@ -4,32 +4,6 @@ body {
     touch-action: pan-x;
 }
 
-body.light {
-  background: white;
-}
-
-body.dark {
-  background: black;
-}
-
-h1.light {
-  color: black;
-}
-
-h1.dark {
-  color: white;
-}
-
-h2.light {
-  color: black;
-}
-
-h2.dark {
-  color: white;
-}
-
-
-
 .display-container {
     width: 100%;
     /*text-align: center;*/
@@ -52,14 +26,6 @@ canvas {
     height: 100%;
     border-radius: 25px;
     touch-action: pan-x;
-}
-
-canvas.light {
-    border: solid 1px;
-}
-
-canvas.dark {
-    border: solid 1px white;
 }
 
 html,
@@ -124,13 +90,7 @@ body {
   padding: 1em;
   border-radius: 25px;
 }
-.modal-dialog.light {
-  background: white;
-}
-.modal-dialog.dark {
-  background: black;
-  border: 1px solid grey;
-}
+
 .modalalert-ok {
   padding: 0.5em;
   float: right;
@@ -184,14 +144,6 @@ body {
   border: 1px solid;
   width: 125px;
   display: none;
-}
-
-.menuchild.light {
-  background: white;
-}
-
-.menuchild.dark {
-  background: grey;
 }
 
 .menuchild > .menuitem {
