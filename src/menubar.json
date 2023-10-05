@@ -1,0 +1,39 @@
+[
+  {
+    "name": "File",
+    "children": [
+      {
+        "name": "Open",
+        "children": []
+      },
+      { "name": "New" },
+      { "name": "Manage" }
+    ]
+  },
+  {
+    "name": "Tools",
+    "children": [
+      { "name": "Eraser" },
+      { "name": "Quick Links" }
+    ]
+  },
+  {
+    "name": "View",
+    "children": [
+      {
+        "name": "Theme",
+        "children": [
+          { "name": "Light" },
+          { "name": "Dark" }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Export",
+    "children": [
+      { "name": "Save" },
+      { "name": "Load" }
+    ]
+  }
+]

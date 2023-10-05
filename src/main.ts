@@ -5,42 +5,38 @@ import { LocalStorageManager } from './local_storage_manager.ts';
 import { RealLineNumber } from './types.ts';
 import { Modal, modalAlert, modalPrompt, modalConfirm } from './modal.ts';
 import { GetConfig } from './config.ts';
+import menubar from './menubar.json';
+import { setupMenubar, MenuItem } from './menubar.ts';
 
 import localForage from "localforage";
 
+
 async function setupNotebookSwitcher(current_notebook: string, storage: NoteDownStorageManager) {
-  const change_notebook = <HTMLSelectElement>document.getElementById("change-notebook");
+  const openMenu = document.getElementById("Menubar.File.Open")!;
+  const change_notebook = <HTMLElement>openMenu.getElementsByClassName("menuchild")[0];
   change_notebook.innerHTML = "";
 
   const notebooks = await storage.listNotebooks();
   const makeMenuEntry = (name: string) => {
-    const entry = document.createElement("div");
-    entry.classList.add("menuitem");
-    const label = document.createElement("div");
-    label.classList.add("menulabel");
-    label.innerText = name;
-    entry.appendChild(label);
-    entry.onclick = async () => {
+    const entry = new MenuItem("Menubar.File.Open.", name);
+    entry.setOnClick(async () => {
       location.assign(`?notebook=${encodeURIComponent(name)}`);
-    };
+    });
     return entry;
   };
   const entry = makeMenuEntry(current_notebook);
-  // entry.value = encodeURIComponent(current_notebook);
-  change_notebook.appendChild(entry);
-  change_notebook.value = current_notebook;
+  entry.attach(change_notebook);
   for (let name of notebooks) {
     if (name == current_notebook) {
       continue;
     }
     const entry = makeMenuEntry(decodeURIComponent(name));
-    // entry.value = name;
-    change_notebook.appendChild(entry);
+    entry.attach(change_notebook);
   }
 }
 
 function setupNotebookCreator() {
-  const new_notebook = <HTMLElement>document.getElementById("create-new-notebook");
+  const new_notebook = <HTMLElement>document.getElementById("Menubar.File.New");
   new_notebook.onclick = async () => {
     while (true) {
       const value = await modalPrompt("New notebook name");
@@ -61,7 +57,7 @@ function setupNotebookCreator() {
 }
 
 function setupNotebookManager(curr_notebook: string, storage: NoteDownStorageManager) {
-  const manage_notebooks = <HTMLElement>document.getElementById("manage-notebooks");
+  const manage_notebooks = <HTMLElement>document.getElementById("Menubar.File.Manage");
   manage_notebooks.onclick = async () => {
     const modal = new Modal("Manage Notebooks");
 
@@ -178,10 +174,10 @@ async function setupLightDarkToggle(renderer: NoteDownRenderer) {
 
   GetConfig().registerModeSwitchCB(
     toggleLightMode.bind(null, true), toggleLightMode.bind(null, false));
-  document.getElementById("EnableLightMode")!.onclick = () => {
+  document.getElementById("Menubar.View.Theme.Light")!.onclick = () => {
     GetConfig().enableLightMode();
   }
-  document.getElementById("EnableDarkMode")!.onclick = () => {
+  document.getElementById("Menubar.View.Theme.Dark")!.onclick = () => {
     GetConfig().enableDarkMode();
   }
 
@@ -199,7 +195,7 @@ function setupSaveLoad(
   storage: LocalStorageManager,
   renderer: NoteDownRenderer
 ) {
-  const download = <HTMLElement>document.getElementById("save_doc");
+  const download = <HTMLElement>document.getElementById("Menubar.Export.Save");
   download.onclick = async () => {
     const blob = await storage.dumpNoteBookData();
     const url = URL.createObjectURL(blob);
@@ -212,7 +208,7 @@ function setupSaveLoad(
     a.remove();
   };
 
-  const upload = <HTMLElement>document.getElementById("load_doc");
+  const upload = <HTMLElement>document.getElementById("Menubar.Export.Load");
   upload.onclick = () => {
     const modal = new Modal("Load File");
 
@@ -314,6 +310,8 @@ export async function main() {
     }
   }
 
+  setupMenubar("Menubar", menubar);
+
   const canvas = <HTMLCanvasElement>document.getElementById("mycanvas");
   canvas.width = 1000;
   canvas.height = 1000;
@@ -357,7 +355,7 @@ export async function main() {
   await setupLightDarkToggle(renderer);
   setupSaveLoad(notebook, storage, renderer);
 
-  const eraser = <HTMLElement>document.getElementById("eraser");
+  const eraser = <HTMLElement>document.getElementById("Menubar.Tools.Eraser")!.getElementsByClassName("menulabel")[0];
   renderer.on_eraser_flip = () => {
     if (renderer.is_eraser) {
       eraser.innerText = "Pen";
@@ -369,7 +367,7 @@ export async function main() {
     renderer.flip_eraser_state();
   };
 
-  const toc = <HTMLElement>document.getElementById("toc");
+  const toc = <HTMLElement>document.getElementById("Menubar.Tools.Quick Links");
   toc.onclick = () => { quickLinks(doc, storage, renderer); };
 
   window.addEventListener('beforeinstallprompt', (e) => {
