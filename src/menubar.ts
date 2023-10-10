@@ -59,8 +59,8 @@ export class MenuItem {
   };
 }
 
-export function setupMenubar(name: string, items: MenubarItem[]) {
-  function setupMenubarHelper(prefix: string, parent: HTMLElement, item: MenubarItem) {
+export function createMenubar(name: string, items: MenubarItem[]) {
+  function createMenubarHelper(prefix: string, parent: HTMLElement, item: MenubarItem) {
     const menuitem = new MenuItem(prefix, item.name, prefix === "Menubar.");
     menuitem.attach(parent);
 
@@ -70,13 +70,13 @@ export function setupMenubar(name: string, items: MenubarItem[]) {
       }
       const menuchild = menuitem.getChild()
       for (let child of item.children) {
-        setupMenubarHelper(prefix + item.name + ".", menuchild, child);
+        createMenubarHelper(prefix + item.name + ".", menuchild, child);
       }
     }
   }
 
   const container = document.getElementById("menubar")!;
   for (let item of items) {
-    setupMenubarHelper(name + ".", container, item);
+    createMenubarHelper(name + ".", container, item);
   }
 }

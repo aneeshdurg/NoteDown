@@ -6,7 +6,7 @@ import { RealLineNumber } from './types.ts';
 import { Modal, modalAlert, modalPrompt, modalConfirm } from './modal.ts';
 import { GetConfig } from './config.ts';
 import menubar from './menubar.json';
-import { setupMenubar, MenuItem } from './menubar.ts';
+import { createMenubar, MenuItem } from './menubar.ts';
 
 import localForage from "localforage";
 
@@ -310,7 +310,7 @@ export async function main() {
     }
   }
 
-  setupMenubar("Menubar", menubar);
+  createMenubar("Menubar", menubar);
 
   const canvas = <HTMLCanvasElement>document.getElementById("mycanvas");
   canvas.width = 1000;
@@ -375,7 +375,7 @@ export async function main() {
   });
 
   // for debugging purposes
-  (window as any).notedown_ui = renderer;
+  (window as any).notedown = renderer;
   (window as any).localForage = localForage;
   // const render = () => {
   //   renderer.clearAndRedraw();
