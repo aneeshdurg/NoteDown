@@ -7,6 +7,7 @@ import { Modal, modalAlert, modalPrompt, modalConfirm } from './modal.ts';
 import { GetConfig } from './config.ts';
 import menubar from './menubar.json';
 import { createMenubar, MenuItem } from './menubar.ts';
+import { quickLinks } from './quickLinks.ts';
 
 import localForage from "localforage";
 
@@ -144,24 +145,6 @@ function setupNotebookManager(curr_notebook: string, storage: NoteDownStorageMan
   };
 }
 
-async function quickLinks(doc: NoteDownDocument, storage: NoteDownStorageManager, renderer: NoteDownRenderer) {
-  const modal = new Modal("Quick Links");
-
-  const quick_links = doc.rootOnlyDoc();
-  const ctx = modal.add_canvas();
-  const toc_ui = new NoteDownRenderer(ctx, quick_links.doc, storage, true);
-  toc_ui.clearAndRedraw();
-  toc_ui.installEventHandlers();
-  toc_ui.on_line_tap = (line_no: RealLineNumber) => {
-    renderer.infer_line_mapping(quick_links.mapping.get(line_no)!);
-    renderer.y_offset = 0;
-    renderer.clearAndRedraw();
-    modal.close_container();
-  };
-
-  modal.attach(document.body);
-}
-
 async function setupLightDarkToggle(renderer: NoteDownRenderer) {
   const styleDark = document.getElementById("style-dark")!.innerText;
   const styleLight = document.getElementById("style-light")!.innerText;
@@ -250,6 +233,20 @@ function setupSaveLoad(
   };
 }
 
+function setupEraser(renderer: NoteDownRenderer) {
+  const eraser = <HTMLElement>document.getElementById("Menubar.Tools.Eraser")!.getElementsByClassName("menulabel")[0];
+  renderer.on_eraser_flip = () => {
+    if (renderer.is_eraser) {
+      eraser.innerText = "Pen";
+    } else {
+      eraser.innerText = "Eraser";
+    }
+  }
+  eraser.onclick = () => {
+    renderer.flip_eraser_state();
+  };
+}
+
 function onLineSelect(renderer: NoteDownRenderer, line: RealLineNumber) {
   navigator.vibrate([100]);
   const modal = new Modal("Add/Delete lines");
@@ -322,6 +319,10 @@ export async function main() {
 
   const queryString = window.location.search;
   const urlParams = new URLSearchParams(queryString);
+
+  // for debugging
+  const upgradeUI = (urlParams.get("upgradeui") || false) as boolean;
+
   const getLastNotebook = async () => {
     const notebook = await localForage.getItem("lastNotebook");
     if (notebook) {
@@ -332,7 +333,7 @@ export async function main() {
   const notebook = decodeURIComponent(urlParams.get("notebook") || await getLastNotebook());
   await localForage.setItem("lastNotebook", notebook);
   document.getElementById("notebookName")!.innerText = notebook;
-  const upgradeUI = (urlParams.get("upgradeui") || false) as boolean;
+
 
   const storage = new LocalStorageManager();
   const doc = new NoteDownDocument();
@@ -354,25 +355,10 @@ export async function main() {
   await setupNotebookSwitcher(notebook, storage);
   await setupLightDarkToggle(renderer);
   setupSaveLoad(notebook, storage, renderer);
-
-  const eraser = <HTMLElement>document.getElementById("Menubar.Tools.Eraser")!.getElementsByClassName("menulabel")[0];
-  renderer.on_eraser_flip = () => {
-    if (renderer.is_eraser) {
-      eraser.innerText = "Pen";
-    } else {
-      eraser.innerText = "Eraser";
-    }
-  }
-  eraser.onclick = () => {
-    renderer.flip_eraser_state();
-  };
+  setupEraser(renderer);
 
   const toc = <HTMLElement>document.getElementById("Menubar.Tools.Quick Links");
   toc.onclick = () => { quickLinks(doc, storage, renderer); };
-
-  window.addEventListener('beforeinstallprompt', (e) => {
-    console.log(e);
-  });
 
   // for debugging purposes
   (window as any).notedown = renderer;
