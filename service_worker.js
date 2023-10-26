@@ -13,6 +13,8 @@ const appShellFiles = [
   "/NoteDown/note-down.js",
   "/NoteDown/notedown.webmanifest",
   "/NoteDown/style.css",
+  "/NoteDown/style-light.css",
+  "/NoteDown/style-dark.css",
   "/NoteDown/note-down.umd.cjs"
 ];
 
