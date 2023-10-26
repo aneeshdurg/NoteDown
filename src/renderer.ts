@@ -2,6 +2,7 @@ import { Point, Stroke } from './stroke.ts';
 import { CanvasContext, RealLineNumber, RenderedLineNumber } from './types.ts';
 import { NoteDownDocument } from './document.ts';
 import { NoteDownStorageManager } from './storage_manager.ts';
+import {NoteDownEngine, StrokeEvent, EraserEvent, AddLineEvent, DeleteLineEvent, DuplicateLineEvent, MoveEvent, IndentEvent} from './engine.ts';
 import { GetConfig } from './config.ts';
 
 import { DragEvent, Region } from './event_manager.ts';
@@ -40,6 +41,8 @@ export class NoteDownRenderer {
   on_line_select: (((line_no: RealLineNumber) => void) | null) = null;
   readonly = false;
 
+  engine: NoteDownEngine;
+
   constructor(
     ctx: CanvasContext,
     doc: NoteDownDocument,
@@ -57,6 +60,8 @@ export class NoteDownRenderer {
     }
 
     this.readonly = readonly;
+
+    this.engine = new NoteDownEngine(this.doc, this.storage);
 
     this.draw_layout();
   }
@@ -160,11 +165,10 @@ export class NoteDownRenderer {
             let indentDirection = deltaX > 0 ? 1 : -1;
             const real_line = this.lineToRealLine.get(lineToIndent!)!;
             const indent_children = this.hidden_roots.has(real_line);
-            if (indentDirection == 1) {
-              await this.doc.indent(real_line, -1, indent_children, this.storage);
-            } else if (indentDirection == -1) {
-              await this.doc.indent(real_line, 1, indent_children, this.storage);
-            }
+
+            const event = new IndentEvent(real_line, indentDirection == 1 ? -1 : 1, indent_children);
+            await this.engine.execute(event);
+
             this.clearAndRedraw();
             scrollPos = evt.end;
           }
@@ -227,7 +231,10 @@ export class NoteDownRenderer {
     if (this.hidden_roots.has(line)) {
       count += this.doc.childLines(line).length;
     }
-    this.doc.deleteLines(line, count, this.storage);
+
+    const event = new DeleteLineEvent(line, count)
+    await this.engine.execute(event)
+
     const new_hidden_roots = new Set<RealLineNumber>();
     this.hidden_roots.forEach((root) => {
       if (root > (line + count)) {
@@ -244,12 +251,13 @@ export class NoteDownRenderer {
   }
 
   async add_line(curr_line: RealLineNumber, num_lines: number) {
-    const lines = num_lines;
-    await this.doc.insertLines(curr_line, lines, this.storage);
+    const event = new AddLineEvent(curr_line, num_lines);
+    await this.engine.execute(event);
+
     const new_hidden_roots = new Set<RealLineNumber>();
     this.hidden_roots.forEach((root) => {
       if (root >= curr_line) {
-        new_hidden_roots.add(root + lines as RealLineNumber);
+        new_hidden_roots.add(root + num_lines as RealLineNumber);
       } else {
         new_hidden_roots.add(root);
       }
@@ -262,8 +270,9 @@ export class NoteDownRenderer {
   }
 
   async duplicate_line(line: RealLineNumber) {
-    await this.add_line(line, 1);
-    await this.doc.copyLine(this.storage, line + 1 as RealLineNumber, line);
+    const event = new DuplicateLineEvent(line);
+    await this.engine.execute(event);
+
     this.clearAndRedraw();
     this.save();
   }
@@ -371,7 +380,10 @@ export class NoteDownRenderer {
       }
       this.hidden_roots.delete(real_line_src);
     }
-    await this.doc.moveLines(real_line_src, real_line_dst, move_children, this.storage);
+
+    const event = new MoveEvent(real_line_src, real_line_dst, move_children);
+    await this.engine.execute(event);
+
     const mapLineNumber = (x: RealLineNumber) => {
       // First map the line as if the src lines were completely deleted
       if (x > real_line_src) {
@@ -624,7 +636,9 @@ export class NoteDownRenderer {
         real_line++;
         this.currentStroke.y_points = this.currentStroke.y_points.map((y) => y - this.line_spacing);
       }
-      await this.doc.add_stroke(real_line, this.currentStroke, this.storage);
+
+      const event = new StrokeEvent(real_line, this.currentStroke);
+      await this.engine.execute(event);
     }
     this.currentStroke = null;
   };
@@ -659,11 +673,13 @@ export class NoteDownRenderer {
         }
       });
 
-      const promises: Promise<void>[] = [];
-      updates.forEach((strokes, line) => {
-        promises.push(this.doc.updateStrokes(line, strokes, this.storage));
+      const originals = new Map<RealLineNumber, Stroke[]>();
+      updates.forEach((_, line) => {
+        originals.set(line, [...this.doc.linesToStrokes.get(line)!]);
       });
-      await Promise.all(promises);
+
+      const event = new EraserEvent(updates, originals);
+      await this.engine.execute(event);
 
       this.clearAndRedraw();
     } else {
