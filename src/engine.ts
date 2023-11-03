@@ -3,9 +3,12 @@ import { NoteDownStorageManager } from './storage_manager.ts';
 import { RealLineNumber } from './types.ts';
 import { Stroke } from './stroke.ts';
 
-class HistoryEvent { }
+abstract class HistoryEvent {
+  abstract execute(engine: NoteDownEngine): Promise<void>;
+  abstract execute(engine: NoteDownEngine): Promise<void>;
+}
 
-class LineEvent extends HistoryEvent {
+abstract class LineEvent extends HistoryEvent {
   line: RealLineNumber
   constructor(line: RealLineNumber) {
     super();
@@ -20,6 +23,10 @@ export class StrokeEvent extends LineEvent {
     super(line);
     this.stroke = stroke;
   }
+
+  async execute(engine: NoteDownEngine) {
+    await engine.doc.add_stroke(this.line, this.stroke, engine.storage);
+  }
 }
 
 export class EraserEvent extends HistoryEvent {
@@ -32,6 +39,14 @@ export class EraserEvent extends HistoryEvent {
     this.original = original;
     this.new_strokes = new_strokes;
   }
+
+  async execute(engine: NoteDownEngine) {
+    const promises: Promise<void>[] = [];
+    this.new_strokes.forEach((strokes, line) => {
+      promises.push(engine.doc.updateStrokes(line, strokes, engine.storage));
+    });
+    await Promise.all(promises);
+  }
 }
 
 export class AddLineEvent extends LineEvent {
@@ -39,6 +54,10 @@ export class AddLineEvent extends LineEvent {
   constructor(line: RealLineNumber, num_lines: number) {
     super(line);
     this.num_lines = num_lines;
+  }
+
+  async execute(engine: NoteDownEngine) {
+    await engine.doc.insertLines(this.line, this.num_lines, engine.storage);
   }
 }
 
@@ -48,9 +67,18 @@ export class DeleteLineEvent extends LineEvent {
     super(line);
     this.num_lines = num_lines;
   }
+
+  async execute(engine: NoteDownEngine) {
+    await engine.doc.deleteLines(this.line, this.num_lines, engine.storage);
+  }
 }
 
-export class DuplicateLineEvent extends LineEvent { }
+export class DuplicateLineEvent extends LineEvent {
+  async execute(engine: NoteDownEngine) {
+    await engine.doc.insertLines(this.line, 1, engine.storage);
+    await engine.doc.copyLine(engine.storage, this.line + 1 as RealLineNumber, this.line);
+  }
+}
 
 export class MoveEvent extends HistoryEvent {
   src_line: RealLineNumber
@@ -63,6 +91,10 @@ export class MoveEvent extends HistoryEvent {
     this.dst_line = dst_line;
     this.move_children = move_children;
   }
+
+  async execute(engine: NoteDownEngine) {
+    await engine.doc.moveLines(this.src_line, this.dst_line, this.move_children, engine.storage);
+  }
 }
 
 export class IndentEvent extends LineEvent {
@@ -72,6 +104,10 @@ export class IndentEvent extends LineEvent {
     super(line);
     this.direction = direction;
     this.indent_children = indent_children;
+  }
+
+  async execute(engine: NoteDownEngine) {
+    await engine.doc.indent(this.line, this.direction, this.indent_children, engine.storage);
   }
 }
 
@@ -88,66 +124,6 @@ export class NoteDownEngine {
 
   async execute(event: HistoryEvent) {
     this.history.push(event);
-
-    if (event instanceof StrokeEvent) {
-      return this.execute_stroke(event);
-    }
-
-    if (event instanceof EraserEvent) {
-      return this.execute_eraser(event);
-    }
-
-    if (event instanceof AddLineEvent) {
-      return this.execute_add_line(event);
-    }
-
-    if (event instanceof DeleteLineEvent) {
-      return this.execute_delete_line(event);
-    }
-
-    if (event instanceof DuplicateLineEvent) {
-      return this.execute_duplicate_line(event);
-    }
-
-    if (event instanceof MoveEvent) {
-      return this.execute_move(event);
-    }
-
-    if (event instanceof IndentEvent) {
-      return this.execute_indent(event);
-    }
-  }
-
-  async execute_stroke(event: StrokeEvent) {
-    await this.doc.add_stroke(event.line, event.stroke, this.storage);
-  }
-
-  async execute_eraser(event: EraserEvent) {
-    const promises: Promise<void>[] = [];
-    event.new_strokes.forEach((strokes, line) => {
-      promises.push(this.doc.updateStrokes(line, strokes, this.storage));
-    });
-    await Promise.all(promises);
-  }
-
-  async execute_add_line(event: AddLineEvent) {
-    await this.doc.insertLines(event.line, event.num_lines, this.storage);
-  }
-
-  async execute_delete_line(event: DeleteLineEvent) {
-    await this.doc.deleteLines(event.line, event.num_lines, this.storage);
-  }
-
-  async execute_duplicate_line(event: DuplicateLineEvent) {
-    await this.doc.insertLines(event.line, 1, this.storage);
-    await this.doc.copyLine(this.storage, event.line + 1 as RealLineNumber, event.line);
-  }
-
-  async execute_move(event: MoveEvent) {
-    await this.doc.moveLines(event.src_line, event.dst_line, event.move_children, this.storage);
-  }
-
-  async execute_indent(event: IndentEvent) {
-    await this.doc.indent(event.line, event.direction, event.indent_children, this.storage);
+    await event.execute(this);
   }
 }
