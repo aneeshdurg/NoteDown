@@ -2,7 +2,7 @@ import { Point, Stroke } from './stroke.ts';
 import { CanvasContext, RealLineNumber, RenderedLineNumber } from './types.ts';
 import { NoteDownDocument } from './document.ts';
 import { NoteDownStorageManager } from './storage_manager.ts';
-import {NoteDownEngine, StrokeEvent, EraserEvent, AddLineEvent, DeleteLineEvent, DuplicateLineEvent, MoveEvent, IndentEvent} from './engine.ts';
+import {NoteDownEngine, StrokeEvent, EraserEventGroupEndEvent, EraserEvent, AddLineEvent, DeleteLineEvent, DuplicateLineEvent, MoveEvent, IndentEvent} from './engine.ts';
 import { GetConfig } from './config.ts';
 
 import { DragEvent, Region } from './event_manager.ts';
@@ -638,6 +638,9 @@ export class NoteDownRenderer {
       }
 
       const event = new StrokeEvent(real_line, this.currentStroke);
+      await this.engine.execute(event);
+    } else {
+      const event = new EraserEventGroupEndEvent();
       await this.engine.execute(event);
     }
     this.currentStroke = null;

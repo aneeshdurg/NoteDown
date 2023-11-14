@@ -125,6 +125,15 @@ export class NoteDownDocument {
     await this.updateLastLine(curr_line, storage);
   }
 
+  async pop_stroke(curr_line: RealLineNumber, storage: NoteDownStorageManager | null) {
+    // Assume there's at least one stroke
+    this.linesToStrokes.get(curr_line)?.pop();
+    if (storage) {
+      await this.saveToStorage(curr_line, storage);
+    }
+    // TODO - decrease last line (shrink doc)
+  }
+
   async updateStrokes(line: RealLineNumber, strokes: Stroke[], storage: NoteDownStorageManager) {
     this.linesToStrokes.set(line, strokes);
     let leftMostPoint = Infinity;

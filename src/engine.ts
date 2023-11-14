@@ -5,7 +5,7 @@ import { Stroke } from './stroke.ts';
 
 abstract class HistoryEvent {
   abstract execute(engine: NoteDownEngine): Promise<void>;
-  abstract execute(engine: NoteDownEngine): Promise<void>;
+  abstract unexecute(engine: NoteDownEngine): Promise<void>;
 }
 
 abstract class LineEvent extends HistoryEvent {
@@ -27,6 +27,20 @@ export class StrokeEvent extends LineEvent {
   async execute(engine: NoteDownEngine) {
     await engine.doc.add_stroke(this.line, this.stroke, engine.storage);
   }
+
+  async unexecute(engine: NoteDownEngine) {
+    await engine.doc.pop_stroke(this.line, engine.storage);
+  }
+}
+
+export class EraserEventGroupEndEvent extends HistoryEvent {
+  async execute(_engine: NoteDownEngine) { }
+
+  async unexecute(engine: NoteDownEngine) {
+    while (engine.history[engine.history.length - 1] instanceof EraserEvent) {
+      engine.pop();
+    }
+  }
 }
 
 export class EraserEvent extends HistoryEvent {
@@ -47,6 +61,14 @@ export class EraserEvent extends HistoryEvent {
     });
     await Promise.all(promises);
   }
+
+  async unexecute(engine: NoteDownEngine) {
+    const promises: Promise<void>[] = [];
+    this.original.forEach((strokes, line) => {
+      promises.push(engine.doc.updateStrokes(line, strokes, engine.storage));
+    });
+    await Promise.all(promises);
+  }
 }
 
 export class AddLineEvent extends LineEvent {
@@ -58,6 +80,10 @@ export class AddLineEvent extends LineEvent {
 
   async execute(engine: NoteDownEngine) {
     await engine.doc.insertLines(this.line, this.num_lines, engine.storage);
+  }
+
+  async unexecute(engine: NoteDownEngine) {
+    await engine.doc.deleteLines(this.line, this.num_lines, engine.storage);
   }
 }
 
@@ -71,12 +97,20 @@ export class DeleteLineEvent extends LineEvent {
   async execute(engine: NoteDownEngine) {
     await engine.doc.deleteLines(this.line, this.num_lines, engine.storage);
   }
+
+  async unexecute(engine: NoteDownEngine) {
+    await engine.doc.insertLines(this.line, this.num_lines, engine.storage);
+  }
 }
 
 export class DuplicateLineEvent extends LineEvent {
   async execute(engine: NoteDownEngine) {
     await engine.doc.insertLines(this.line, 1, engine.storage);
     await engine.doc.copyLine(engine.storage, this.line + 1 as RealLineNumber, this.line);
+  }
+
+  async unexecute(engine: NoteDownEngine) {
+    await engine.doc.deleteLines(this.line, 1, engine.storage);
   }
 }
 
@@ -95,6 +129,14 @@ export class MoveEvent extends HistoryEvent {
   async execute(engine: NoteDownEngine) {
     await engine.doc.moveLines(this.src_line, this.dst_line, this.move_children, engine.storage);
   }
+
+  async unexecute(engine: NoteDownEngine) {
+    if (this.src_line < this.dst_line) {
+      await engine.doc.moveLines(this.dst_line - 1 as RealLineNumber, this.src_line, this.move_children, engine.storage);
+    } else {
+      await engine.doc.moveLines(this.dst_line, this.src_line + 1 as RealLineNumber, this.move_children, engine.storage);
+    }
+  }
 }
 
 export class IndentEvent extends LineEvent {
@@ -108,6 +150,10 @@ export class IndentEvent extends LineEvent {
 
   async execute(engine: NoteDownEngine) {
     await engine.doc.indent(this.line, this.direction, this.indent_children, engine.storage);
+  }
+
+  async unexecute(engine: NoteDownEngine) {
+    await engine.doc.indent(this.line, (-1 * this.direction) as (-1 | 1), this.indent_children, engine.storage);
   }
 }
 
@@ -125,5 +171,12 @@ export class NoteDownEngine {
   async execute(event: HistoryEvent) {
     this.history.push(event);
     await event.execute(this);
+  }
+
+  async pop() {
+    const evt = this.history.pop();
+    if (evt) {
+      await evt.unexecute(this);
+    }
   }
 }
