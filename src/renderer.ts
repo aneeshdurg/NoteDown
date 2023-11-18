@@ -613,6 +613,10 @@ export class NoteDownRenderer {
   async onPenUp() {
     this.curr_location = null;
     if (!this.write_in_progress || !this.currentStroke) {
+      if (this.is_eraser) {
+        const event = new EraserEventGroupEndEvent();
+        await this.engine.execute(event);
+      }
       return;
     }
     this.write_in_progress = false;
@@ -638,9 +642,6 @@ export class NoteDownRenderer {
       }
 
       const event = new StrokeEvent(real_line, this.currentStroke);
-      await this.engine.execute(event);
-    } else {
-      const event = new EraserEventGroupEndEvent();
       await this.engine.execute(event);
     }
     this.currentStroke = null;
@@ -681,7 +682,7 @@ export class NoteDownRenderer {
         originals.set(line, [...this.doc.linesToStrokes.get(line)!]);
       });
 
-      const event = new EraserEvent(updates, originals);
+      const event = new EraserEvent(originals, updates);
       await this.engine.execute(event);
 
       this.clearAndRedraw();

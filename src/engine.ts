@@ -34,7 +34,16 @@ export class StrokeEvent extends LineEvent {
 }
 
 export class EraserEventGroupEndEvent extends HistoryEvent {
-  async execute(_engine: NoteDownEngine) { }
+  async execute(engine: NoteDownEngine) {
+    if (engine.history.length < 2) {
+      return
+    }
+
+    if (engine.history[engine.history.length - 2] instanceof EraserEventGroupEndEvent) {
+      // Remove the duplicate GroupEnd event.
+      engine.history.pop();
+    }
+  }
 
   async unexecute(engine: NoteDownEngine) {
     while (engine.history[engine.history.length - 1] instanceof EraserEvent) {
