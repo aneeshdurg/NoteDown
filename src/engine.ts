@@ -3,7 +3,7 @@ import { NoteDownStorageManager } from './storage_manager.ts';
 import { RealLineNumber } from './types.ts';
 import { Stroke } from './stroke.ts';
 
-abstract class HistoryEvent {
+export abstract class HistoryEvent {
   abstract execute(engine: NoteDownEngine): Promise<void>;
   abstract unexecute(engine: NoteDownEngine): Promise<void>;
 }
@@ -182,10 +182,11 @@ export class NoteDownEngine {
     await event.execute(this);
   }
 
-  async pop() {
+  async pop(): Promise<HistoryEvent | undefined> {
     const evt = this.history.pop();
     if (evt) {
       await evt.unexecute(this);
     }
+    return evt;
   }
 }

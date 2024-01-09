@@ -11,6 +11,13 @@
     ]
   },
   {
+    "name": "Edit",
+    "children": [
+      { "name": "Undo" },
+      { "name": "Redo" }
+    ]
+  },
+  {
     "name": "Tools",
     "children": [
       { "name": "Eraser" },

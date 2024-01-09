@@ -3,6 +3,7 @@ import { NoteDownRenderer } from './renderer.ts';
 import { NoteDownStorageManager } from './storage_manager.ts';
 import { LocalStorageManager } from './local_storage_manager.ts';
 import { RealLineNumber } from './types.ts';
+import { HistoryEvent } from './engine.ts';
 import { Modal, modalAlert, modalPrompt, modalConfirm } from './modal.ts';
 import { GetConfig } from './config.ts';
 import menubar from './menubar.json';
@@ -252,6 +253,26 @@ function setupEraser(renderer: NoteDownRenderer) {
   };
 }
 
+function setupUndoRedo(renderer: NoteDownRenderer) {
+  const redo_buffer: HistoryEvent[] = [];
+  const undo = <HTMLElement>document.getElementById("Menubar.Edit.Undo");
+  undo.onclick = async () => {
+    const evt = await renderer.engine.pop();
+    if (evt) {
+      await renderer.clearAndRedraw();
+      redo_buffer.push(evt);
+    }
+  };
+  const redo = <HTMLElement>document.getElementById("Menubar.Edit.Redo");
+  redo.onclick = async () => {
+    const evt = redo_buffer.pop();
+    if (evt) {
+      await renderer.engine.execute(evt);
+      await renderer.clearAndRedraw();
+    }
+  };
+}
+
 function onLineSelect(renderer: NoteDownRenderer, line: RealLineNumber) {
   navigator.vibrate([100]);
   const modal = new Modal("Add/Delete lines");
@@ -361,6 +382,7 @@ export async function main() {
   await setupLightDarkToggle(renderer);
   setupSaveLoad(notebook, storage, renderer);
   setupEraser(renderer);
+  setupUndoRedo(renderer);
 
   const toc = <HTMLElement>document.getElementById("Menubar.Tools.Quick Links");
   toc.onclick = () => { quickLinks(doc, storage, renderer); };
