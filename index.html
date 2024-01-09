@@ -18,7 +18,10 @@
       @import url("./src/style-light.css")
     </style>
     <style id="style-current">
-      @import url("./src/style-light.css")
+      /* by using media query based import rules, ensure that system preferences
+         are respected on initial load */
+      @import url("./src/style-dark.css") (prefers-color-scheme: dark);
+      @import url("./src/style-light.css") (prefers-color-scheme: light);
     </style>
   </head>
   <body>

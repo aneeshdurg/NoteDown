@@ -165,7 +165,12 @@ async function setupLightDarkToggle(renderer: NoteDownRenderer) {
   }
 
   let defaultTheme = (await localForage.getItem("theme")) as string | undefined;
-  defaultTheme = defaultTheme || "light";
+  if (!defaultTheme) {
+    // Use the system's default preferences to determine the default theme
+    // preference.
+    const res = window.matchMedia("(prefers-color-scheme: light)");
+    defaultTheme = res.matches ? "light" : "dark";
+  }
   if (defaultTheme == "light") {
     GetConfig().enableLightMode();
   } else {
