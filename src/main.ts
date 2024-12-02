@@ -1,3 +1,5 @@
+// NoteDown entry point
+
 import { NoteDownDocument } from './document.ts';
 import { NoteDownRenderer } from './renderer.ts';
 import { NoteDownStorageManager } from './storage_manager.ts';
@@ -146,6 +148,8 @@ function setupNotebookManager(curr_notebook: string, storage: NoteDownStorageMan
   };
 }
 
+// Create UI elements for toggling light/dark mode
+// the default will be determined by the system preferences
 async function setupLightDarkToggle(renderer: NoteDownRenderer) {
   const styleDark = document.getElementById("style-dark")!.innerText;
   const styleLight = document.getElementById("style-light")!.innerText;

@@ -1,3 +1,6 @@
+// Service worker for caching all resources to enable offline access in PWA
+// mode
+
 const cacheName = "notedownPWA-v0.0.9";
 const appShellFiles = [
   "/NoteDown/",
