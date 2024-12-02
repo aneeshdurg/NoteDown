@@ -274,7 +274,7 @@ function setupUndoRedo(renderer: NoteDownRenderer) {
 }
 
 function onLineSelect(renderer: NoteDownRenderer, line: RealLineNumber) {
-  navigator.vibrate([100]);
+  renderer.vibrate([100]);
   const modal = new Modal("Add/Delete lines");
   const add = document.createElement("button");
   add.innerText = "add";

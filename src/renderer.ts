@@ -66,6 +66,10 @@ export class NoteDownRenderer {
     this.draw_layout();
   }
 
+  vibrate(...args) {
+    return navigator.vibrate && navigator.vibrate(...args);
+  }
+
   async save() {
     if (this.readonly) {
       return;
@@ -198,7 +202,7 @@ export class NoteDownRenderer {
         penDragEnd: this.onPenUp.bind(this),
         penDragCancel: this.onPenUp.bind(this),
         longPress: (pt: Point) => {
-          navigator.vibrate([100]);
+          this.vibrate([100]);
           mode = "indent";
           lineToIndent = Math.floor(this.transformCoords(pt).y / this.line_spacing) as RenderedLineNumber;
         },
