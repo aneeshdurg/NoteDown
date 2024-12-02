@@ -108,6 +108,7 @@ export class DeleteLineEvent extends LineEvent {
   }
 
   async unexecute(engine: NoteDownEngine) {
+    // TODO the content for the lines needs to be undeleted as well
     await engine.doc.insertLines(this.line, this.num_lines, engine.storage);
   }
 }
