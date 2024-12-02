@@ -2,6 +2,9 @@ import { Stroke } from './stroke.ts';
 import { RealLineNumber } from './types.ts';
 import { NoteDownStorageManager } from './storage_manager.ts';
 
+/**
+ * Contents of a notebook and methods to modify them
+ */
 export class NoteDownDocument {
   last_line: number = 9;
   indentWidth = 20;

@@ -1,3 +1,6 @@
+/**
+ * UI Configuration options to persist
+ */
 class Config {
   enableDarkMode() {
     this.currentModeIsLight = false;
@@ -28,6 +31,9 @@ class Config {
 
 const _global_config = new Config();
 
+/**
+ * Get the current global config object
+ */
 export function GetConfig(): Config {
   return _global_config;
 }

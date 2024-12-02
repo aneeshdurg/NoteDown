@@ -1,21 +1,40 @@
 import { CanvasContext } from './types.ts';
 import { GetConfig } from './config.ts';
 
+/**
+ * A point in space
+ */
 export interface Point {
   x: number;
   y: number;
 }
 
+/**
+ * A single continuous input from a user represented as a list of line segments
+ */
 export class Stroke {
+  /**
+   * x-coordinates of all points in this stroke
+   */
   x_points: number[]
+  /**
+   * y-coordinates of all points in this stroke
+   */
   y_points: number[]
+  /**
+   * Offset of first point in the stroke (all points are recorded relative to this offset)
+   */
   y_root: number
+
   constructor(y_root: number) {
     this.x_points = [];
     this.y_points = [];
     this.y_root = y_root;
   }
 
+  /**
+   * Return a copy of this stroke
+   */
   copy(): Stroke {
     const s = new Stroke(this.y_root);
     for (let i = 0; i < this.x_points.length; i++) {
@@ -24,13 +43,19 @@ export class Stroke {
     return s;
   }
 
+  /**
+   * Add a point (x, y) to this stroke.
+   * Note that y should be in global space - not relative to this.y_root
+   */
   add(x: number, y: number) {
     this.x_points.push(x);
     this.y_points.push(y - this.y_root);
   }
 
-  // Draw this stroke to ctx. If fastdraw is true, decrease quality to decrease
-  // render time.
+  /**
+   * Draw this stroke to ctx. If fastdraw is true, decrease quality to decrease
+   * render time.
+   */
   // TODO(aneesh) set a rendering budget instead and determine the resolution
   // from the budget
   draw(ctx: CanvasContext, y_root: number, fastdraw: boolean = false) {
@@ -58,8 +83,10 @@ export class Stroke {
     }
   }
 
-  // Returns true if the line segment p1-p2 intersects any line from this
-  // stroke. Assuming that this stroke is rooted at y-root
+  /**
+   * Returns true if the line segment p1-p2 intersects any line from this stroke,
+   * assuming that this stroke is rooted at y_root
+   */
   intersects(y_root: number, p1: Point, p2: Point): boolean {
     // TODO(aneesh) this is so inefficient - having a bounding box could be a
     // cheap and easy optimization
@@ -126,7 +153,9 @@ export class Stroke {
     return false;
   }
 
-  // Get the minumum x-coordinate of this stroke
+  /**
+   * Get the minumum x-coordinate of this stroke
+   */
   leftMostPoint(): number {
     let leftMostPoint = Infinity;
     for (let i = 0; i < this.x_points.length; i++) {

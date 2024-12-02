@@ -3,12 +3,28 @@ import { NoteDownStorageManager } from './storage_manager.ts';
 import { RealLineNumber } from './types.ts';
 import { Stroke } from './stroke.ts';
 
+/**
+ * Abstract base class for an event that can be recorded as history
+ */
 export abstract class HistoryEvent {
+  /**
+   * Apply this event to `engine`
+   */
   abstract execute(engine: NoteDownEngine): Promise<void>;
+  /**
+   * Undo `this.execute`
+   * Assumes that the most recently applied event to `engine` was `this`.
+   */
   abstract unexecute(engine: NoteDownEngine): Promise<void>;
 }
 
+/**
+ * Abstract base class for a history event that holds a line number
+ */
 abstract class LineEvent extends HistoryEvent {
+  /**
+   * Line number to operate on
+   */
   line: RealLineNumber
   constructor(line: RealLineNumber) {
     super();
@@ -16,7 +32,13 @@ abstract class LineEvent extends HistoryEvent {
   }
 }
 
+/**
+ * Event that records the effect of adding a new stroke
+ */
 export class StrokeEvent extends LineEvent {
+  /**
+   * Stroke to add or remove from the engine
+   */
   stroke: Stroke;
 
   constructor(line: RealLineNumber, stroke: Stroke) {
@@ -33,6 +55,14 @@ export class StrokeEvent extends LineEvent {
   }
 }
 
+/**
+ * Event that records the end of an erase
+ *
+ * When the user begins erasing, a series of `EraserEvent`s are created for each
+ * "stroke" of the eraser. When the eraser s lifted, an EraserEventGroupEndEvent
+ * is generated. This allows each erase stroke to be immediately commited to
+ * history, but also allows a single undo to restore ALL erased content.
+ */
 export class EraserEventGroupEndEvent extends HistoryEvent {
   async execute(engine: NoteDownEngine) {
     if (engine.history.length < 2) {
@@ -52,6 +82,9 @@ export class EraserEventGroupEndEvent extends HistoryEvent {
   }
 }
 
+/**
+ * Event that records the effect of a single erase stroke
+ */
 export class EraserEvent extends HistoryEvent {
   // This is super expensive - we actually just need to store for each deleted
   // stroke the line number and index of that stroke.
@@ -80,6 +113,9 @@ export class EraserEvent extends HistoryEvent {
   }
 }
 
+/**
+ * Event that records the effect of adding lines to the document
+ */
 export class AddLineEvent extends LineEvent {
   num_lines: number
   constructor(line: RealLineNumber, num_lines: number) {
@@ -96,6 +132,9 @@ export class AddLineEvent extends LineEvent {
   }
 }
 
+/**
+ * Event that records the effect of deleting lines to the document
+ */
 export class DeleteLineEvent extends LineEvent {
   num_lines: number
   constructor(line: RealLineNumber, num_lines: number) {
@@ -113,6 +152,9 @@ export class DeleteLineEvent extends LineEvent {
   }
 }
 
+/**
+ * Event that records the effect of duplicating a line
+ */
 export class DuplicateLineEvent extends LineEvent {
   async execute(engine: NoteDownEngine) {
     await engine.doc.insertLines(this.line, 1, engine.storage);
@@ -124,6 +166,9 @@ export class DuplicateLineEvent extends LineEvent {
   }
 }
 
+/**
+ * Event that records the effect of moving a line
+ */
 export class MoveEvent extends HistoryEvent {
   src_line: RealLineNumber
   dst_line: RealLineNumber
@@ -149,6 +194,9 @@ export class MoveEvent extends HistoryEvent {
   }
 }
 
+/**
+ * Event that records the effect of indenting a line
+ */
 export class IndentEvent extends LineEvent {
   direction: -1 | 1;
   indent_children: boolean;
@@ -167,10 +215,23 @@ export class IndentEvent extends LineEvent {
   }
 }
 
+/**
+ * Engine that applies `HistoryEvent`s to a `NoteDownDocument` and persists
+ * mutations to a `NoteDownStorageManager`.
+ */
 export class NoteDownEngine {
+  /**
+   * Document to operate on
+   */
   doc: NoteDownDocument;
+  /**
+   * Storage manager to persist changes to
+   */
   storage: NoteDownStorageManager;
 
+  /**
+   * List of `HistoryEvent`s that have been `execute`d.
+   */
   history: HistoryEvent[] = [];
 
   constructor(doc: NoteDownDocument, storage: NoteDownStorageManager) {
@@ -178,11 +239,17 @@ export class NoteDownEngine {
     this.storage = storage;
   }
 
+  /**
+   * Execute `event` after adding it to the engine's history
+   */
   async execute(event: HistoryEvent) {
     this.history.push(event);
     await event.execute(this);
   }
 
+  /**
+   * Unexecute the most recent event in history and return the event unexecuted.
+   */
   async pop(): Promise<HistoryEvent | undefined> {
     const evt = this.history.pop();
     if (evt) {

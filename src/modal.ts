@@ -1,3 +1,9 @@
+// TODO(aneesh) replace this with HTMLDialogElement instead since that's widely
+// available now.
+
+/**
+ * Generic modal window class
+ */
 export class Modal {
   container: HTMLElement;
   dialog: HTMLElement;
@@ -29,6 +35,7 @@ export class Modal {
     this.dialog = modal_dialog;
   }
 
+  /** Adds a canvas to the modal */
   add_canvas(): CanvasRenderingContext2D {
     const canvas = document.createElement("canvas");
     canvas.width = 1000;
@@ -41,10 +48,12 @@ export class Modal {
     return ctx;
   }
 
+  /** Appends an element to the modal */
   appendChild(el: HTMLElement) {
     this.dialog.appendChild(el);
   }
 
+  /** Close the modal */
   close_container() {
     this.container.remove();
     if (this.on_close) {
@@ -52,11 +61,13 @@ export class Modal {
     }
   }
 
+  /** Render the modal */
   attach(parent: HTMLElement) {
     parent.appendChild(this.container);
   }
 }
 
+/** Display an alert-style pop-up as a modal */
 export function modalAlert(msg: string): Modal {
   const modal = new Modal(msg);
   const ok = document.createElement("button");
@@ -70,6 +81,7 @@ export function modalAlert(msg: string): Modal {
   return modal;
 }
 
+/** Display an prompt-style pop-up as a modal and collect a response */
 export function modalPrompt(msg: string): Promise<string | null> {
   return new Promise<string | null>((r) => {
     const modal = new Modal(msg);
@@ -107,6 +119,7 @@ export function modalPrompt(msg: string): Promise<string | null> {
   });
 }
 
+/** Display an confirmation dialogue as a modal and collect a response */
 export function modalConfirm(msg: string): Promise<boolean> {
   return new Promise<boolean>((r) => {
     const modal = new Modal(msg);

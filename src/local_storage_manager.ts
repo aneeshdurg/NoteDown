@@ -5,6 +5,9 @@ import { JsonValue, JsonObject } from './types.ts';
 
 import localForage from "localforage";
 
+/**
+ * Implementation of NoteDownStorageManager that writes to cache
+ */
 export class LocalStorageManager implements NoteDownStorageManager {
   active_notebook: string | null = null;
   store: typeof localForage = localForage;
