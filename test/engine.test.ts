@@ -19,4 +19,26 @@ a
     evt.execute(engine);
     expect(doc.linesTofirstContent.get(0 as RealLineNumber)).toEqual(doc.indentWidth);
   });
+
+  it("should delete a line", async () => {
+    const storage = new MockStorageManager();
+    storage.setActiveNotebook("test");
+    const spec = `
+a
+ b
+  c
+   d
+    e
+     f
+`;
+    const doc = await documentCreator(storage, spec);
+    let engine = new NoteDownEngine(doc, storage);
+    let evt = new DeleteLineEvent(2 as RealLineNumber, 3);
+    expect(doc.linesTofirstContent.get(2 as RealLineNumber)).toEqual(doc.indentWidth * 2);
+    evt.execute(engine);
+    expect(doc.linesTofirstContent.get(2 as RealLineNumber)).toEqual(doc.indentWidth * 5);
+
+  });
+
+
 });
