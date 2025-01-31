@@ -66,8 +66,8 @@ export class NoteDownRenderer {
     this.draw_layout();
   }
 
-  vibrate(...args) {
-    return navigator.vibrate && navigator.vibrate(...args);
+  vibrate(...args: any[]) {
+    return navigator.vibrate && navigator.vibrate.apply(null, args as any);
   }
 
   async save() {
