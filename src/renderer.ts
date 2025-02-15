@@ -67,7 +67,12 @@ export class NoteDownRenderer {
   }
 
   vibrate(...args: any[]) {
-    return navigator.vibrate && navigator.vibrate.apply(null, args as any);
+    try{
+    
+      return navigator.vibrate && navigator.vibrate.apply(null, args as any);
+    
+    }
+    catch(error){}
   }
 
   async save() {
