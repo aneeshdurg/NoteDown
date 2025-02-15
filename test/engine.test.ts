@@ -20,7 +20,7 @@ a
     expect(doc.linesTofirstContent.get(0 as RealLineNumber)).toEqual(doc.indentWidth);
   });
 
-  it("should delete a line", async () => {
+  it("should delete multiple lines", async () => {
     const storage = new MockStorageManager();
     storage.setActiveNotebook("test");
     const spec = `
@@ -39,6 +39,48 @@ a
     expect(doc.linesTofirstContent.get(2 as RealLineNumber)).toEqual(doc.indentWidth * 5);
 
   });
+
+  it("should delete all lines", async () => {
+    const storage = new MockStorageManager();
+    storage.setActiveNotebook("test");
+    const spec = `
+ a
+  b
+   c
+    d
+     e 
+      f
+`;
+  
+  const doc = await documentCreator(storage, spec);
+  let engine = new NoteDownEngine(doc, storage);
+  let evt = new DeleteLineEvent(0 as RealLineNumber, 6);
+  expect(doc.linesTofirstContent.get(0 as RealLineNumber)).toEqual(doc.indentWidth)
+  evt.execute(engine);
+  expect(doc.linesTofirstContent.get(0 as RealLineNumber)).toEqual(undefined)
+  });
+
+  it("should delete more lines than necessary", async () => {
+    const storage = new MockStorageManager();
+    storage.setActiveNotebook("test");
+    const spec = `
+ a
+  b
+   c
+    d
+     e 
+      f
+`;
+  
+  const doc = await documentCreator(storage, spec);
+  let engine = new NoteDownEngine(doc, storage);
+  let evt = new DeleteLineEvent(0 as RealLineNumber, 10);
+  expect(doc.linesTofirstContent.get(0 as RealLineNumber)).toEqual(doc.indentWidth)
+  evt.execute(engine);
+  expect(doc.linesTofirstContent.get(0 as RealLineNumber)).toEqual(undefined)
+  });
+
+
 
 
 });
