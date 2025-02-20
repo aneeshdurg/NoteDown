@@ -16,7 +16,7 @@ a
     let engine = new NoteDownEngine(doc, storage);
     let evt = new DeleteLineEvent(0 as RealLineNumber, 1);
     expect(doc.linesTofirstContent.get(0 as RealLineNumber)).toEqual(0);
-    evt.execute(engine);
+    await evt.execute(engine);
     expect(doc.linesTofirstContent.get(0 as RealLineNumber)).toEqual(doc.indentWidth);
   });
 
@@ -35,7 +35,7 @@ a
     let engine = new NoteDownEngine(doc, storage);
     let evt = new DeleteLineEvent(2 as RealLineNumber, 3);
     expect(doc.linesTofirstContent.get(2 as RealLineNumber)).toEqual(doc.indentWidth * 2);
-    evt.execute(engine);
+    await evt.execute(engine);
     expect(doc.linesTofirstContent.get(2 as RealLineNumber)).toEqual(doc.indentWidth * 5);
 
   });
@@ -51,13 +51,13 @@ a
      e 
       f
 `;
-  
-  const doc = await documentCreator(storage, spec);
-  let engine = new NoteDownEngine(doc, storage);
-  let evt = new DeleteLineEvent(0 as RealLineNumber, 6);
-  expect(doc.linesTofirstContent.get(0 as RealLineNumber)).toEqual(doc.indentWidth)
-  evt.execute(engine);
-  expect(doc.linesTofirstContent.get(0 as RealLineNumber)).toEqual(undefined)
+
+    const doc = await documentCreator(storage, spec);
+    let engine = new NoteDownEngine(doc, storage);
+    let evt = new DeleteLineEvent(0 as RealLineNumber, 6);
+    expect(doc.linesTofirstContent.get(0 as RealLineNumber)).toEqual(doc.indentWidth)
+    await evt.execute(engine);
+    expect(doc.linesTofirstContent.get(0 as RealLineNumber)).toEqual(undefined)
   });
 
   it("should delete more lines than necessary", async () => {
