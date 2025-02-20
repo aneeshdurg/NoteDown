@@ -1,0 +1,23 @@
+body {
+  background: white;
+}
+
+h1 {
+  color: black;
+}
+
+h2 {
+  color: black;
+}
+
+canvas {
+    border: solid 1px;
+}
+
+.modal-dialog {
+  background: white;
+}
+
+.menuchild {
+  background: white;
+}
