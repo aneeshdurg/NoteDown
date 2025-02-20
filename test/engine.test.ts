@@ -71,16 +71,33 @@ a
      e 
       f
 `;
-  
-  const doc = await documentCreator(storage, spec);
-  let engine = new NoteDownEngine(doc, storage);
-  let evt = new DeleteLineEvent(0 as RealLineNumber, 10);
-  expect(doc.linesTofirstContent.get(0 as RealLineNumber)).toEqual(doc.indentWidth)
-  evt.execute(engine);
-  expect(doc.linesTofirstContent.get(0 as RealLineNumber)).toEqual(undefined)
+
+    const doc = await documentCreator(storage, spec);
+    let engine = new NoteDownEngine(doc, storage);
+    let evt = new DeleteLineEvent(0 as RealLineNumber, 10);
+    expect(doc.linesTofirstContent.get(0 as RealLineNumber)).toEqual(doc.indentWidth)
+    await evt.execute(engine);
+    expect(doc.linesTofirstContent.get(0 as RealLineNumber)).toEqual(undefined)
   });
 
+  it("should undelete a line", async () => {
+    const storage = new MockStorageManager();
+    storage.setActiveNotebook("test");
+    const spec = `
+a
+ ab
+  abc
+   abcd
+`;
 
+    const doc = await documentCreator(storage, spec);
+    let engine = new NoteDownEngine(doc, storage);
+    let evt = new DeleteLineEvent(0 as RealLineNumber, 1);
+    await evt.execute(engine);
+    await evt.unexecute(engine);
+    expect(doc.linesTofirstContent.get(0 as RealLineNumber)).toEqual(0);
+    expect(doc.linesTofirstContent.get(1 as RealLineNumber)).toEqual(doc.indentWidth);
+  });
 
 
 });
