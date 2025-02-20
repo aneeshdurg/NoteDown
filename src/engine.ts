@@ -137,18 +137,38 @@ export class AddLineEvent extends LineEvent {
  */
 export class DeleteLineEvent extends LineEvent {
   num_lines: number
+
+  linesToStrokes: Map<RealLineNumber, Stroke[]> = new Map();
+  linesTofirstContent: Map<RealLineNumber, number> = new Map();
+
   constructor(line: RealLineNumber, num_lines: number) {
     super(line);
     this.num_lines = num_lines;
   }
 
+
   async execute(engine: NoteDownEngine) {
+    for (let i = 0; i < this.num_lines; i++) {
+      let curr_line = this.line + i as RealLineNumber;
+      if (engine.doc.linesToStrokes.has(curr_line)) {
+        this.linesToStrokes.set(curr_line, engine.doc.linesToStrokes.get(curr_line)!);
+        this.linesTofirstContent.set(curr_line, engine.doc.linesTofirstContent.get(curr_line)!);
+      };
+    };
     await engine.doc.deleteLines(this.line, this.num_lines, engine.storage);
   }
 
   async unexecute(engine: NoteDownEngine) {
-    // TODO the content for the lines needs to be undeleted as well
     await engine.doc.insertLines(this.line, this.num_lines, engine.storage);
+    for (let i = 0; i < this.num_lines; i++) {
+      let curr_line = this.line + i as RealLineNumber;
+      if (this.linesToStrokes.has(curr_line)) {
+        engine.doc.linesToStrokes.set(curr_line, this.linesToStrokes.get(curr_line)!);
+        engine.doc.linesTofirstContent.set(curr_line, this.linesTofirstContent.get(curr_line)!);
+        await engine.doc.saveToStorage(curr_line, engine.storage);
+      };
+    };
+
   }
 }
 
