@@ -167,3 +167,15 @@ body {
   left: 100%;
   top: 0px;
 }
+
+.managenotebooks {
+  position: inherit;
+  height: 80%;
+  overflow: auto;
+}
+
+.managenotebooks-search {
+  width: "95%";
+  height: "2em";
+  border-radius: "10px";
+}

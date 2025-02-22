@@ -66,18 +66,13 @@ function setupNotebookManager(curr_notebook: string, storage: NoteDownStorageMan
     const modal = new Modal("Manage Notebooks");
 
     const container = document.createElement("div");
-    // TODO - move to style.css
-    container.style.position = "inherit";
-    container.style.height = "80%";
-    container.style.overflow = "auto";
+    container.classList.add("managenotebooks");
 
     const elements = new Map<string, HTMLElement>();
 
     const searchbar = document.createElement("input");
+    searchbar.classList.add("managenotebooks-search");
     // TODO - move to style.css
-    searchbar.style.width = "95%";
-    searchbar.style.height = "2em";
-    searchbar.style.borderRadius = "10px";
     searchbar.placeholder = "Search";
     searchbar.onkeyup = () => {
       for (let kv of elements) {
